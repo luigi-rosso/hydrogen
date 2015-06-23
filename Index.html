@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>hydrogen</title>
+    
+    <style type="text/css">
+        body 
+        {
+            margin:0;
+        }
+    </style>
+
+    <script src="Scripts/RequestAnimFrame.js"></script>
+    <script src="Scripts/glMatrix.js"></script>
+    <script src="Scripts/Graphics.js"></script>
+    <script src="Scripts/Font.js"></script>
+    <script src="Scripts/Hydrogen.js"></script>
+
+
+    <script>
+        var canvas;
+        var hydrogen;
+
+        function initialize()
+        {
+            var dropZone = document.body;
+            dropZone.addEventListener('dragover', handleDragOver, false);
+            dropZone.addEventListener('drop', handleFileSelect, false);
+            dropZone.addEventListener('paste', handlePaste, false);
+
+            canvas = document.getElementById("canvas");
+            hydrogen = new Hydrogen(canvas);
+
+            var isDown = false;
+            var lastMousePosition = [0,0];
+
+            document.body.onmousewheel = function(e)
+            {
+                //camera.onmousewheel(e.wheelDeltaY);
+            };
+
+            document.body.onmousedown = function(e)
+            {
+                isDown = true;
+                lastMousePosition = [e.pageX, e.pageY];
+                //camera.onmousedown(e.pageX, e.pageY);
+            };
+
+            document.body.onmousemove = function(e)
+            {
+                var mouseDelta = [e.pageX - lastMousePosition[0], e.pageY - lastMousePosition[1]];
+                lastMousePosition = [e.pageX, e.pageY];
+            };
+
+            document.body.onmouseup = function(e)
+            {
+                isDown = false;
+            };
+
+            window.onkeydown = function(e)
+            {
+                /*if(_UIRoot.onkeydown(e))
+                {
+                    e.preventDefault();
+                    return;
+                }
+                else
+                {
+                    if(_Game.onkeydown(e))
+                    {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
+                    else if(camera.onkeydown && camera.onkeydown(e.keyCode))
+                    {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
+                }*/
+            };
+
+            window.onkeyup = function(e)
+            {
+                /*if(_UIRoot.onkeyup(e))
+                {
+                    e.preventDefault();
+                    return;
+                }
+                else
+                {
+                    if(_Game.onkeyup(e))
+                    {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
+                    else if(camera.onkeyup && camera.onkeyup(e.keyCode))
+                    {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
+                }*/
+            };
+        }
+
+        function handleDragOver(evt) 
+        {
+            evt.stopPropagation();
+            evt.preventDefault();
+            evt.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handlePaste(evt) 
+        {
+            //_UIRoot.onpaste(evt.clipboardData.getData("text"));
+        }
+
+        function handleFileSelect(evt) 
+        {
+            return;
+            /*
+            evt.stopPropagation();
+            evt.preventDefault();
+
+            var files = evt.dataTransfer.files;
+            
+            for(var i = 0; i < files.length; i++)
+            {
+                var file = files[i];
+                var filename = file.name.toLowerCase();
+                if(filename.indexOf(".js") != filename.length-".js".length)
+                {
+                    continue;
+                }
+                var reader = new FileReader();
+
+                // Closure to capture the file information.
+                reader.onload = (function(theFile) 
+                {
+                    return function(e) 
+                    {
+                        scatter.loadString(e.target.result);
+                        editor.setParticleSystem(scatter.System);
+                    };
+                })(file);
+
+                // Read in the image file as a data URL.
+                reader.readAsText(file);
+                break;
+            }*/
+          }
+
+    </script>
+
+    <script id="sprite-fs" type="x-shader/x-fragment">
+        #ifdef GL_ES
+        precision highp float;
+        #endif
+
+        uniform vec4 Color;
+        uniform float Opacity;
+        uniform sampler2D TextureSampler;
+
+        varying vec2 TexCoord;
+
+        void main(void)
+        {
+            vec4 color = texture2D(TextureSampler, TexCoord) * Color;
+            color.a *= Opacity;
+            gl_FragColor = color;
+        }
+    </script>
+
+    <script id="sprite-vs" type="x-shader/x-vertex">
+        attribute vec2 VertexPosition;
+        attribute vec2 VertexTexCoord;
+
+        uniform mat4 ProjectionMatrix;
+        uniform mat4 WorldMatrix;
+
+        varying vec2 TexCoord;
+
+        void main(void)
+        {
+            TexCoord = VertexTexCoord;
+            vec4 pos = WorldMatrix * vec4(VertexPosition.x, VertexPosition.y, 0.0, 1.0);
+            gl_Position = ProjectionMatrix * vec4(pos.xyz, 1.0);
+        }
+    </script>
+
+    <script id="color-fs" type="x-shader/x-fragment">
+        #ifdef GL_ES
+        precision highp float;
+        #endif
+
+        uniform vec4 Color;
+        uniform float Opacity;
+
+        void main(void)
+        {
+            vec4 color = Color;
+            color.a *= Opacity;
+            gl_FragColor = color;
+        }
+    </script>
+
+    <script id="color-vs" type="x-shader/x-vertex">
+        attribute vec2 VertexPosition;
+
+        uniform mat4 ProjectionMatrix;
+        uniform mat4 WorldMatrix;
+
+        void main(void)
+        {
+            vec4 pos = WorldMatrix * vec4(VertexPosition.x, VertexPosition.y, 0.0, 1.0);
+            gl_Position = ProjectionMatrix * vec4(pos.xyz, 1.0);
+        }
+    </script>
+</head>
+<body onload="initialize();">
+    <canvas id="canvas" style="position:absolute"></canvas>
+</body>
+</html>
