@@ -19,8 +19,8 @@ function Font(filename)
 			{
 				return;
 			}
-			d.LineHeight = obj['LineHeight'];
-			d.Map = {};
+			d.lineHeight = obj['LineHeight'];
+			d.map = {};
 
 			var maxHeight = 0;
 			var maxDescend = 0;
@@ -31,8 +31,8 @@ function Font(filename)
 				var dt = glyphs[i];
 				var gly = {};
 				var u = dt['u'];
-				d.Map[u] = gly;
-				gly.Kern = {};
+				d.map[u] = gly;
+				gly.kern = {};
 
 				gly.hbx = dt['hbx'];
 				gly.hby = dt['hby'];
@@ -67,16 +67,16 @@ function Font(filename)
 					var j = 0;
 					while(j < k.length)
 					{
-						gly.Kern[glyphs[k[j]]['u']] = { x:k[j+1], y:k[j+2]};
+						gly.kern[glyphs[k[j]]['u']] = { x:k[j+1], y:k[j+2]};
 						j+=3;
 					}
 				}
 			}
 
-			d.MaxGlyphHeight = maxHeight;
-			d.MaxDescender = maxDescend;
-			d.MaxNumberHeight = maxNumeral;
-			_This.Data = d;
+			d.maxGlyphHeight = maxHeight;
+			d.maxDescender = maxDescend;
+			d.maxNumberHeight = maxNumeral;
+			_This.data = d;
         }   
     };
     xhr.open("GET", datafile, true);
@@ -98,13 +98,13 @@ function Font(filename)
 
 	this.findIndex = function(t, xPos)
 	{
-		if(!_This.Data)
+		if(!_This.data)
 		{
 			return { w: 0, h: 0, a: 0, d: 0 };
 		}
 		var x = 0;
 		var p = 0;
-        var map = _This.Data.Map;
+        var map = _This.data.map;
 
 
         for(var i = 0; i < t.length; i++)
@@ -128,7 +128,7 @@ function Font(filename)
             
             if(p)
             {
-                var k = g.Kern[p];
+                var k = g.kern[p];
                 if(k)
                 {
                     x += k.x;
@@ -148,13 +148,13 @@ function Font(filename)
 
 	this.measure = function(t, length)
 	{
-		if(!_This.Data)
+		if(!_This.data)
 		{
 			return { w: 0, h: 0, a: 0, d: 0 };
 		}
 		var x = 0;
 		var p = 0;
-        var map = _This.Data.Map;
+        var map = _This.data.map;
 
         var maxAscender = 0.0;
         var maxDescender = 0.0;
@@ -185,7 +185,7 @@ function Font(filename)
             
             if(p)
             {
-                var k = g.Kern[p];
+                var k = g.kern[p];
                 if(k)
                 {
                     x += k.x;
@@ -210,10 +210,10 @@ function Font(filename)
 
     this.__defineGetter__("lineHeight", function()
     {
-    	if(!_This.Data)
+    	if(!_This.data)
     	{
     		return 0;
     	}
-        return _This.Data.LineHeight;
+        return _This.data.lineHeight;
     });
 }

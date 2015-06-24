@@ -14,6 +14,7 @@
     <script src="Scripts/glMatrix.js"></script>
     <script src="Scripts/Graphics.js"></script>
     <script src="Scripts/Font.js"></script>
+    <script src="Scripts/CachedFont.js"></script>
     <script src="Scripts/Hydrogen.js"></script>
 
 
@@ -164,9 +165,7 @@
 
         void main(void)
         {
-            vec4 color = texture2D(TextureSampler, TexCoord) * Color;
-            color.a *= Opacity;
-            gl_FragColor = color;
+            gl_FragColor = vec4(Color.rgb, texture2D(TextureSampler, TexCoord).a*Color.a*Opacity);
         }
     </script>
 
