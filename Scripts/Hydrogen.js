@@ -10,6 +10,9 @@ function Hydrogen(_Canvas)
 	var _Lines = [];
 	var _MaxLineDigits = 0;
 
+	var _GutterPadding = 10.0;
+	var _LineLabelColor = [0.6, 0.6, 0.6, 1.0];
+
 	if(!_Graphics.init())
 	{
 		// TODO: Handle error.
@@ -118,17 +121,20 @@ function Hydrogen(_Canvas)
 
 		if(_Graphics.setCachedFont(_CachedFont))
 		{	
+			var gutter = _GutterPadding + _MaxLineDigits * _CachedFont.horizontalAdvance + _GutterPadding;
+
 			var glyphMap = _CachedFont.map;
 			var lineHeight = _CachedFont.lineHeight;
 			var maxDescender = _CachedFont.maxDescender;
 			var baseLine = lineHeight + maxDescender;
-			//console.log(lineHeight, maxDescender);
-			var x = 20;
+			
+			var x = gutter;
 			var y = 0;
 			for(var i = 0; i < _Lines.length; i++)
 			{
 				var line = _Lines[i];
 				_Graphics.drawCachedText(x, y+baseLine, line.text);
+
 				y += lineHeight;
 				if(y > _Canvas.height)
 				{
@@ -136,6 +142,26 @@ function Hydrogen(_Canvas)
 				}
 
 			}
+
+			// Draw lines.
+			if(_Graphics.setCachedFont(_CachedFont, 1.0, _LineLabelColor))
+			{	
+				var x = _GutterPadding;
+				var y = 0;
+				for(var i = 0; i < _Lines.length; i++)
+				{
+					var line = _Lines[i];
+					_Graphics.drawCachedText(_GutterPadding, y+baseLine, line.label);
+
+					y += lineHeight;
+					if(y > _Canvas.height)
+					{
+						break;
+					}
+
+				}
+			}
+			
 		}
 		/*if(_Graphics.setFont(_Font))
 		{

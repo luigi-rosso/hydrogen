@@ -7,6 +7,7 @@ function CachedFont(filename)
 	var _MaxDescender = 0;
 	var _IsReady = false;
 	var _GlyphBufferCount = 0;
+    var _HorizontalAdvance = 0;
 
 	var xhr = new XMLHttpRequest();
 	xhr.responseType = "arraybuffer";
@@ -127,6 +128,11 @@ function CachedFont(filename)
         		{
         			_GlyphBufferCount++;
         		}
+
+                if(gly.ha > _HorizontalAdvance)
+                {
+                    _HorizontalAdvance = gly.ha;
+                }
         	}
 
 	        // Read in all texture data.
@@ -190,5 +196,10 @@ function CachedFont(filename)
     this.__defineGetter__("glyphs", function()
     {
     	return _Glyphs;
+    });
+
+    this.__defineGetter__("horizontalAdvance", function()
+    {
+        return _HorizontalAdvance;
     });
 }
