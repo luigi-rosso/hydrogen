@@ -13,6 +13,10 @@ function Hydrogen(_Canvas)
 	var _GutterPadding = 10.0;
 	var _LineLabelColor = [0.6, 0.6, 0.6, 1.0];
 
+	var _ScrollX = 0.0;
+	var _ScrollY = 0.0;
+	var _MaxLineLength = 0;
+
 	if(!_Graphics.init())
 	{
 		// TODO: Handle error.
@@ -23,6 +27,7 @@ function Hydrogen(_Canvas)
 	function _OnResize()
 	{
 		_SizeToFit();	
+		_ClampScroll();
 	};
 
 	function _OnDragOver(evt)
@@ -64,28 +69,59 @@ function Hydrogen(_Canvas)
 
 	}
 
+	function _OnMouseWheel(evt)
+	{
+		_ScrollY -= evt.deltaY;
+		_ScrollX -= evt.deltaX;
+
+		_ClampScroll();
+	}
+
+	function _ClampScroll()
+	{
+		if(!_CachedFont.isReady)
+		{
+			return;
+		}
+		var maxLabelWidth = _MaxLineDigits * _CachedFont.horizontalAdvance;
+		var gutter = _GutterPadding + maxLabelWidth + _GutterPadding;
+
+		var paneWidth = _Canvas.width - gutter;
+		var paneHeight = _Canvas.height;
+
+		var lineHeight = _CachedFont.lineHeight;
+		var contentHeight = _Lines.length * lineHeight;
+		var contentWidth = _MaxLineLength * _CachedFont.horizontalAdvance;
+
+		var minScrollY = Math.min(0, paneHeight - contentHeight);
+		var minScrollX = Math.min(0, paneWidth - contentWidth);
+
+		_ScrollY = Math.max(minScrollY, Math.min(0, _ScrollY));
+		_ScrollX = Math.max(minScrollX, Math.min(0, _ScrollX));
+
+	}
+
 	function _SetContents(text)
 	{
 		var start = Date.now();
 		_Lines = [];
+		_MaxLineLength = 0;
 
 		var lastFoundIndex = 0;
 		while(lastFoundIndex != -1)
 		{
 			var index = Array.prototype.indexOf.call(text, _LineBreak, lastFoundIndex)
-			if(index != -1)
+			
+			var lineText = text.substring(lastFoundIndex, index == -1 ? undefined : index); 
+			_Lines.push({
+				"label":(_Lines.length+1).toString(),
+				"text":lineText
+			});
+			if(lineText.length > _MaxLineLength)
 			{
-				_Lines.push({
-					"label":(_Lines.length+1).toString(),
-					"text":text.substring(lastFoundIndex, index)
-				});
-				//console.log(text.substring(lastFoundIndex, index+1));
-				lastFoundIndex = index+1;
+				_MaxLineLength = lineText.length;
 			}
-			else
-			{
-				lastFoundIndex = index;
-			}
+			lastFoundIndex = index == -1 ? index : index+1;
 		}
 
 		_MaxLineDigits = _Lines.length.toString().length;
@@ -100,6 +136,7 @@ function Hydrogen(_Canvas)
     document.body.addEventListener('dragover', _OnDragOver, false);
     document.body.addEventListener('drop', _OnDragDrop, false);
     document.body.addEventListener('paste', _OnPaste, false);
+    document.body.addEventListener('mousewheel', _OnMouseWheel, false);
 
 	function _SizeToFit()
 	{
@@ -108,7 +145,7 @@ function Hydrogen(_Canvas)
 		_Graphics.setViewport(0.0, 0.0, _Canvas.width, _Canvas.height);
 	}
 
-	_SizeToFit();
+	_OnResize();
 
 	function _Update()
 	{
@@ -121,37 +158,53 @@ function Hydrogen(_Canvas)
 
 		if(_Graphics.setCachedFont(_CachedFont))
 		{	
-			var gutter = _GutterPadding + _MaxLineDigits * _CachedFont.horizontalAdvance + _GutterPadding;
+			var maxLabelWidth = _MaxLineDigits * _CachedFont.horizontalAdvance;
+			var gutter = _GutterPadding + maxLabelWidth + _GutterPadding;
 
 			var glyphMap = _CachedFont.map;
 			var lineHeight = _CachedFont.lineHeight;
 			var maxDescender = _CachedFont.maxDescender;
 			var baseLine = lineHeight + maxDescender;
 			
-			var x = gutter;
-			var y = 0;
-			for(var i = 0; i < _Lines.length; i++)
+			var contentHeight = _Lines.length * lineHeight;
+			var visibleLines = Math.round(_Canvas.height / lineHeight) + 1;
+			var firstLine = Math.floor(-_ScrollY / lineHeight);
+			var lastLine = Math.min(firstLine + visibleLines, _Lines.length-1);
+			var firstLineOrigin = _ScrollY % lineHeight;
+
+			var columnWidth = _CachedFont.horizontalAdvance;
+			var visibleColumns = Math.round(_Canvas.width / columnWidth) + 1;
+			var firstColumn = Math.floor(-_ScrollX / columnWidth);
+			var lastColumn = firstColumn + visibleColumns;
+			var firstColumnOrigin = _ScrollX % columnWidth;
+
+			var x = gutter+firstColumnOrigin;
+			var y = firstLineOrigin;
+
+			_Graphics.pushClip(gutter, 0, _Canvas.width-gutter, _Canvas.height);
+			for(var i = firstLine; i <= lastLine; i++)
 			{
 				var line = _Lines[i];
-				_Graphics.drawCachedText(x, y+baseLine, line.text);
+				_Graphics.drawCachedText(x, y+baseLine, line.text, firstColumn, lastColumn);
 
 				y += lineHeight;
 				if(y > _Canvas.height)
 				{
 					break;
 				}
-
 			}
+			_Graphics.popClip();
 
+			_Graphics.pushClip(0, 0, gutter, _Canvas.height);
 			// Draw lines.
 			if(_Graphics.setCachedFont(_CachedFont, 1.0, _LineLabelColor))
 			{	
 				var x = _GutterPadding;
-				var y = 0;
-				for(var i = 0; i < _Lines.length; i++)
+				var y = firstLineOrigin;
+				for(var i = firstLine; i <= lastLine; i++)
 				{
 					var line = _Lines[i];
-					_Graphics.drawCachedText(_GutterPadding, y+baseLine, line.label);
+					_Graphics.drawCachedText(_GutterPadding + maxLabelWidth - (line.label.length*_CachedFont.horizontalAdvance), y+baseLine, line.label);
 
 					y += lineHeight;
 					if(y > _Canvas.height)
@@ -161,27 +214,8 @@ function Hydrogen(_Canvas)
 
 				}
 			}
-			
+			_Graphics.popClip();
 		}
-		/*if(_Graphics.setFont(_Font))
-		{
-			var glyphMap = _Font.data.map;
-			var lineHeight = _Font.data.lineHeight;
-			var maxDescender = _Font.data.maxDescender;
-			var baseLine = lineHeight - maxDescender;
-			//console.log(lineHeight, baseLine);
-			var x = 20;
-			var y = 0;
-			for(var i = 0; i < _Lines.length; i++)
-			{
-				var line = _Lines[i];
-				_Graphics.drawText(x, y+baseLine, line.text);
-				y += lineHeight;
-			}
-		}*/
-		
-			//_Graphics.drawText(20.0, 20.0, "Hello world.");
-		//}
 		requestAnimFrame(_Update);
 	}
 	_Update();

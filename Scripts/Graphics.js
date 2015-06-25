@@ -25,7 +25,8 @@ var Graphics = function (canvas)
     var _ViewportX;
     var _ViewportY;
 
-    var _Clips;
+    var _Clips = [];
+
     try
     {
         var options =
@@ -444,14 +445,24 @@ var Graphics = function (canvas)
         return true;
     };
 
-    var _DrawCachedText = function(x, y, t)
+    var _DrawCachedText = function(x, y, t, offset, lastChar)
     {
         //x = Math.round(x);
         //y = Math.round(y);
 
+        offset |= 0;
+        if(lastChar == undefined)
+        {
+            lastChar = t.length-1;
+        }
+        else
+        {
+            lastChar = Math.min(lastChar, t.length-1);
+        }
+        
         var p = 0;
 
-        for(var i = 0; i < t.length; i++)
+        for(var i = offset; i <= lastChar; i++)
         {
             var c = t.charCodeAt(i);
 
@@ -595,15 +606,16 @@ var Graphics = function (canvas)
         return true;
     };
 
-    var _DrawText = function(x, y, t)
+    var _DrawText = function(x, y, t, offset)
     {
         x = Math.round(x);
         y = Math.round(y);
+        offset |= 0;
 
         var p = 0;
         var map = _CurrentFont.data.map;
 
-        for(var i = 0; i < t.length; i++)
+        for(var i = offset; i < t.length; i++)
         {
             var c = t.charCodeAt(i);
 
@@ -740,6 +752,11 @@ var Graphics = function (canvas)
     {
         if(_Clips.length < 2)
         {
+            return;
+        }
+        else if(_Clips.length == 2)
+        {
+            _ClearClip();
             return;
         }
         _Clips.splice(_Clips.length-1, 1);
