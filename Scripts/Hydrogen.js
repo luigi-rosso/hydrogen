@@ -82,12 +82,29 @@ function Hydrogen(_Canvas)
         }
 	}
 
+	function _OnMouseDown(evt)
+	{
+		evt.stopPropagation();
+        evt.preventDefault();
+
+        for(var i = 0; i < _Panes.length; i++)
+        {
+        	var pane = _Panes[i];
+        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+        	{
+        		pane.onMouseDown(evt, evt.x-pane.x, evt.y-pane.y);
+        		break;
+        	}
+        }
+	}
+
 
 	window.addEventListener('resize', _OnResize, false);
     document.body.addEventListener('dragover', _OnDragOver, false);
     document.body.addEventListener('drop', _OnDragDrop, false);
     document.body.addEventListener('paste', _OnPaste, false);
     document.body.addEventListener('mousewheel', _OnMouseWheel, false);
+    document.body.addEventListener('mousedown', _OnMouseDown, false);
 
 	function _SizeToFit()
 	{

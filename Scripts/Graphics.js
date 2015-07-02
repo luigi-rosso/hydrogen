@@ -335,7 +335,7 @@ var Graphics = function (canvas)
         _GL.viewport(_ViewportX, _ViewportY, _ViewportWidth, _ViewportHeight);
     };
 
-    var _SetCachedFont = function(font, opacity, color)
+    var _SetFont = function(font, opacity, color)
     {
         if(!font.isReady)
         {
@@ -445,7 +445,7 @@ var Graphics = function (canvas)
         return true;
     };
 
-    var _DrawCachedText = function(x, y, t, offset, lastChar)
+    var _DrawText = function(x, y, t, offset, lastChar)
     {
         //x = Math.round(x);
         //y = Math.round(y);
@@ -504,152 +504,6 @@ var Graphics = function (canvas)
                 _GL.uniformMatrix4fv(_SpriteShader.Uniforms.WorldMatrix, false, _FontWorldMatrix);
                 
                 _GL.drawArrays(_GL.TRIANGLE_STRIP, g.bufferIndex*4, 4);
-            }
-            x += g.ha;
-            p = c;
-        }
-    };
-
-    var _SetFont = function(font, opacity, color)
-    {
-        if(!font.data || !font.image)
-        {
-            // Font still loading, or failed.
-            return false;
-        }
-
-        if(opacity === undefined)
-        {
-            opacity = 1.0;
-        }
-
-        if(!color) 
-        {
-            color = _DefaultColor;
-        }
-
-        for(var i = 0; i < 4; i++) _ColorBuffer[i] = color[i];
-
-        var data = font.data;
-        var shader = _SpriteShader;
-        _CurrentFont = font;
-
-        if(!font.VertexBuffer)
-        {
-            // Create buffer.
-            var vertices = [];
-            var bufferIndex = 0;
-            for(var i in data.map)
-            {
-                var glyph = data.map[i];
-
-                if(glyph.w == 0 || glyph.h == 0)
-                {
-                    continue;
-                }
-
-                glyph.i = bufferIndex;
-                bufferIndex++;
-
-                
-                vertices.push(0.0);
-                vertices.push(glyph.h);
-                vertices.push(glyph.u1);
-                vertices.push(glyph.v2+glyph.v1);
-
-                vertices.push(0.0);
-                vertices.push(0.0);
-                vertices.push(glyph.u1);
-                vertices.push(glyph.v1);
-
-                vertices.push(glyph.w);
-                vertices.push(glyph.h);
-                vertices.push(glyph.u2+glyph.u1);
-                vertices.push(glyph.v2+glyph.v1);
-
-                vertices.push(glyph.w);
-                vertices.push(0.0);
-                vertices.push(glyph.u2+glyph.u1);
-                vertices.push(glyph.v1);
-            }
-
-            font.VertexBuffer = _GL.createBuffer();
-            _GL.bindBuffer(_GL.ARRAY_BUFFER, font.VertexBuffer);
-            _GL.bufferData(_GL.ARRAY_BUFFER, new Float32Array(vertices), _GL.STATIC_DRAW);
-        }
-        if(!font.texture)
-        {
-            font.texture = _GL.createTexture();
-            _GL.bindTexture(_GL.TEXTURE_2D, font.texture);
-
-            _GL.pixelStorei(_GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-            _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MAG_FILTER, _GL.LINEAR);
-            _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MIN_FILTER, _GL.LINEAR);
-            _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_WRAP_S, _GL.CLAMP_TO_EDGE);
-            _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_WRAP_T, _GL.CLAMP_TO_EDGE);
-
-            _GL.texImage2D(_GL.TEXTURE_2D, 0, _GL.RGBA, _GL.RGBA, _GL.UNSIGNED_BYTE, font.image);
-        }
-
-        _Bind(shader, font.VertexBuffer);
-
-        _GL.uniformMatrix4fv(shader.Uniforms.ProjectionMatrix, false, _OrthoProjection);
-        _GL.uniformMatrix4fv(shader.Uniforms.WorldMatrix, false, _FontWorldMatrix);   
-
-        _GL.activeTexture(_GL.TEXTURE0);
-        _GL.bindTexture(_GL.TEXTURE_2D, font.texture);
-        _GL.uniform1i(shader.Uniforms.TextureSampler, 0);
-
-        _GL.uniform1f(shader.Uniforms.Opacity, opacity);  
-        _GL.uniform4fv(shader.Uniforms.Color, _ColorBuffer);
-
-        return true;
-    };
-
-    var _DrawText = function(x, y, t, offset)
-    {
-        x = Math.round(x);
-        y = Math.round(y);
-        offset |= 0;
-
-        var p = 0;
-        var map = _CurrentFont.data.map;
-
-        for(var i = offset; i < t.length; i++)
-        {
-            var c = t.charCodeAt(i);
-
-            switch(c)
-            {
-                case 32:        // SPACE
-                case 9: 
-                case 13:        // TAB - for now we translate a tab to a space
-                    c = 32;
-                    break;
-            }
-
-            var g = map[c];
-            if(!g)
-            {
-                g = map[0];
-            }
-            
-            /*if(p)
-            {
-                var k = g.kern[p];
-                if(k)
-                {
-                    x += k.x;
-                }
-            }*/
-
-            if(g.i != undefined)
-            {
-                _FontWorldMatrix[12] = x;
-                _FontWorldMatrix[13] = y - g.hby;
-                _GL.uniformMatrix4fv(_SpriteShader.Uniforms.WorldMatrix, false, _FontWorldMatrix);
-                
-                _GL.drawArrays(_GL.TRIANGLE_STRIP, g.i*4, 4);
             }
             x += g.ha;
             p = c;
@@ -785,9 +639,6 @@ var Graphics = function (canvas)
     this.setFont = _SetFont;
     this.drawText = _DrawText;
     this.drawRect = _DrawRect;
-
-    this.setCachedFont = _SetCachedFont;
-    this.drawCachedText = _DrawCachedText;
 
     this.init = _Initialize;
     this.clear = _Clear;
