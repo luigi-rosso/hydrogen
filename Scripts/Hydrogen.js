@@ -7,6 +7,7 @@ function Hydrogen(_Canvas)
 	var _UpdateTime = Date.now();
 	var _Panes = [];
 	var _MouseCaptureUI;
+	var _FocusUI;
 
 	if(!_Graphics.init())
 	{
@@ -83,6 +84,11 @@ function Hydrogen(_Canvas)
         }
 	}
 
+	function _Focus(ui)
+	{
+		_FocusUI = ui;
+	}
+
 	function _CaptureMouse(ui)
 	{
 		_MouseCaptureUI = ui;
@@ -131,7 +137,6 @@ function Hydrogen(_Canvas)
 		evt.stopPropagation();
         evt.preventDefault();
 
-
         if(_MouseCaptureUI)
         {
         	_MouseCaptureUI.onMouseUp(evt, evt.x-_MouseCaptureUI.x, evt.y-_MouseCaptureUI.y);
@@ -150,6 +155,26 @@ function Hydrogen(_Canvas)
         }
 	}
 
+	function _OnKeyDown(evt)
+	{
+		if(evt.keyCode == 8) // Prevent backspace navigation.
+		{
+			evt.preventDefault();
+		}
+        
+	}
+
+	function _OnKeyPress(evt)
+	{
+		evt.stopPropagation();
+        evt.preventDefault();
+
+		if(_FocusUI)
+		{
+			_FocusUI.onKeyPress(evt);
+		}
+	}
+
 
 	window.addEventListener('resize', _OnResize, false);
     document.body.addEventListener('dragover', _OnDragOver, false);
@@ -159,6 +184,8 @@ function Hydrogen(_Canvas)
     document.body.addEventListener('mousedown', _OnMouseDown, false);
     document.body.addEventListener('mousemove', _OnMouseMove, false);
     document.body.addEventListener('mouseup', _OnMouseUp, false);
+    document.body.addEventListener('keypress', _OnKeyPress, false);
+    document.body.addEventListener('keydown', _OnKeyDown, false);
 
 	function _SizeToFit()
 	{
@@ -206,4 +233,5 @@ function Hydrogen(_Canvas)
     });
 
     this.captureMouse = _CaptureMouse;
+    this.focus = _Focus;
 }

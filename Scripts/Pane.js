@@ -111,6 +111,7 @@ function Pane(_Hydrogen)
 
 		_IsDragging = true;
 		_Hydrogen.captureMouse(this);
+		_Hydrogen.focus(this);
 
 		var hit = _PositionToLocation(rx, ry);
 
@@ -235,8 +236,24 @@ function Pane(_Hydrogen)
 				column1:cursor.pivot.column
 			};
 		}
-		
+	}
 
+	function _OnKeyPress(evt)
+	{
+		console.log(evt.keyCode);
+		switch(evt.keyCode)
+		{
+			case 13: // Enter
+				break;
+			case 8: // Backspace
+				break;
+			case 46: // Delete
+				break;
+		}
+
+		var str = String.fromCharCode(evt.charCode);
+		console.log(str);
+		
 	}
 
 	function _OnMouseUp(evt, rx, ry)
@@ -402,6 +419,7 @@ function Pane(_Hydrogen)
 	this.onMouseDown = _OnMouseDown;
 	this.onMouseMove = _OnMouseMove;
 	this.onMouseUp = _OnMouseUp;
+	this.onKeyPress = _OnKeyPress;
 	this.setFont = _SetFont;
 	this.draw = _Draw;
 }
