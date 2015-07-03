@@ -6,6 +6,7 @@ function Hydrogen(_Canvas)
 	var _Graphics = new Graphics(_Canvas);
 	var _UpdateTime = Date.now();
 	var _Panes = [];
+	var _MouseCaptureUI;
 
 	if(!_Graphics.init())
 	{
@@ -82,6 +83,11 @@ function Hydrogen(_Canvas)
         }
 	}
 
+	function _CaptureMouse(ui)
+	{
+		_MouseCaptureUI = ui;
+	}
+
 	function _OnMouseDown(evt)
 	{
 		evt.stopPropagation();
@@ -98,6 +104,52 @@ function Hydrogen(_Canvas)
         }
 	}
 
+	function _OnMouseMove(evt)
+	{
+		evt.stopPropagation();
+        evt.preventDefault();
+
+        if(_MouseCaptureUI)
+        {
+        	_MouseCaptureUI.onMouseMove(evt, evt.x-_MouseCaptureUI.x, evt.y-_MouseCaptureUI.y);
+        	return;
+        }
+
+        for(var i = 0; i < _Panes.length; i++)
+        {
+        	var pane = _Panes[i];
+        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+        	{
+        		pane.onMouseMove(evt, evt.x-pane.x, evt.y-pane.y);
+        		break;
+        	}
+        }
+	}
+
+	function _OnMouseUp(evt)
+	{
+		evt.stopPropagation();
+        evt.preventDefault();
+
+
+        if(_MouseCaptureUI)
+        {
+        	_MouseCaptureUI.onMouseUp(evt, evt.x-_MouseCaptureUI.x, evt.y-_MouseCaptureUI.y);
+        	_MouseCaptureUI = null;
+        	return;
+        }
+
+        for(var i = 0; i < _Panes.length; i++)
+        {
+        	var pane = _Panes[i];
+        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+        	{
+        		pane.onMouseUp(evt, evt.x-pane.x, evt.y-pane.y);
+        		break;
+        	}
+        }
+	}
+
 
 	window.addEventListener('resize', _OnResize, false);
     document.body.addEventListener('dragover', _OnDragOver, false);
@@ -105,6 +157,8 @@ function Hydrogen(_Canvas)
     document.body.addEventListener('paste', _OnPaste, false);
     document.body.addEventListener('mousewheel', _OnMouseWheel, false);
     document.body.addEventListener('mousedown', _OnMouseDown, false);
+    document.body.addEventListener('mousemove', _OnMouseMove, false);
+    document.body.addEventListener('mouseup', _OnMouseUp, false);
 
 	function _SizeToFit()
 	{
@@ -150,4 +204,6 @@ function Hydrogen(_Canvas)
     {
         return _Font;
     });
+
+    this.captureMouse = _CaptureMouse;
 }

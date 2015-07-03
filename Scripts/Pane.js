@@ -17,6 +17,7 @@ function Pane(_Hydrogen)
 	var _Document;
 
 	var _Cursors = [];
+	var _IsDragging = false;
 
 	function _SetFont(font)
 	{
@@ -77,12 +78,8 @@ function Pane(_Hydrogen)
 
 	}
 
-	function _OnMouseDown(evt, rx, ry)
+	function _PositionToLocation(rx, ry)
 	{
-		if(!_Document)
-		{
-			return;
-		}
 		var lines = _Document.lines;
 
 		var maxLabelWidth = _Document.maxLineDigits * _Font.horizontalAdvance;
@@ -102,6 +99,21 @@ function Pane(_Hydrogen)
 		var line = lines[hitLine];
 		var hitColumn = Math.max(0, Math.min(line.text.length, firstColumn + Math.round((rx - firstColumnOrigin - gutter)/columnWidth)));
 
+		return { line:hitLine, column:hitColumn };
+	}
+
+	function _OnMouseDown(evt, rx, ry)
+	{
+		if(!_Document)
+		{
+			return;
+		}
+
+		_IsDragging = true;
+		_Hydrogen.captureMouse(this);
+
+		var hit = _PositionToLocation(rx, ry);
+
 		if(evt.shiftKey && _Cursors.length > 0)
 		{
 			var cursorLine = 0;
@@ -117,39 +129,45 @@ function Pane(_Hydrogen)
 				}
 			}
 
-			var line2 = hitLine;
-			var column2 = hitColumn;
+			var line2 = hit.line;
+			var column2 = hit.column;
 
-			if(line2 == cursor.line)
+			var minLine = cursor.line;
+			var minColumn = cursor.column;
+			var maxLine = cursor.line;
+			var maxColumn = cursor.column;
+
+			if(cursor.range)
 			{
-				cursor.range = 
-				{
-					line1:line2,
-					column1:column2 < cursor.column ? column2 : cursor.column,
-					line2:line2,
-					column2:column2 < cursor.column ? cursor.column : column2
-				};
+				minLine = cursor.range.line1;
+				minColumn = cursor.range.column1;
+				maxLine = cursor.range.line2;
+				maxColumn = cursor.range.column2;
 			}
-			else if(line2 < cursor.line)
+			
+			if(line2 <= minLine)
 			{
 				cursor.range = 
 				{
 					line1:line2,
 					column1:column2,
-					line2:cursor.line,
-					column2:cursor.column
+					line2:maxLine,
+					column2:maxColumn
 				};
 			}
 			else 
 			{
 				cursor.range = 
 				{
+					line1:minLine,
+					column1:minColumn,
 					line2:line2,
-					column2:column2,
-					line1:cursor.line,
-					column1:cursor.column
+					column2:column2
 				};
 			}
+
+			cursor.line = hit.line;
+			cursor.column = hit.column;
 		}
 		else
 		{
@@ -157,12 +175,73 @@ function Pane(_Hydrogen)
 
 			_Cursors.push(
 			{
-				line:hitLine,
-				column:hitColumn
+				line:hit.line,
+				column:hit.column
 			});
 		}
 
 		//console.log(evt);
+	}
+
+	function _OnMouseMove(evt, rx, ry)
+	{
+		if(!_IsDragging || _Cursors.length == 0)
+		{
+			return;
+		}
+
+		var cursor = _Cursors[0];
+		if(!cursor.pivot)
+		{
+			cursor.pivot =
+			{
+				line: cursor.line,
+				column: cursor.column
+			};
+		}
+
+		var hit = _PositionToLocation(rx, ry);
+
+		cursor.line = hit.line;
+		cursor.column = hit.column;
+		
+		if(cursor.line == cursor.pivot.line)
+		{
+			cursor.range = 
+			{
+				line1:cursor.line,
+				column1:cursor.column < cursor.pivot.column ? cursor.column : cursor.pivot.column,
+				line2:cursor.line,
+				column2:cursor.column < cursor.pivot.column ? cursor.pivot.column : cursor.column,
+			};
+		}
+		else if(cursor.line < cursor.pivot.line)
+		{
+			cursor.range = 
+			{
+				line1:cursor.line,
+				column1:cursor.column,
+				line2:cursor.pivot.line,
+				column2:cursor.pivot.column
+			};
+		}
+		else
+		{
+			cursor.range = 
+			{
+				line2:cursor.line,
+				column2:cursor.column,
+				line1:cursor.pivot.line,
+				column1:cursor.pivot.column
+			};
+		}
+		
+
+	}
+
+	function _OnMouseUp(evt, rx, ry)
+	{
+		_IsDragging = false;
 	}
 
 	function _OnMouseWheel(evt)
@@ -237,6 +316,55 @@ function Pane(_Hydrogen)
 			var cursorY = _Y + _ScrollY + cursor.line * lineHeight;
 			var cursorX = _X + gutter + _ScrollX + cursor.column * columnWidth;
 			graphics.drawRect(cursorX, cursorY, 1.0, lineHeight, 1.0, [1.0, 1.0, 1.0, 1.0]);
+			if(cursor.range)
+			{
+				var range = cursor.range;
+
+				var currentLine = range.line1;
+				var endLine = range.line2;
+				var columnStart = range.column1;
+
+				while(true)
+				{
+					var startY = _Y + _ScrollY + currentLine * lineHeight;
+					var startX = _X + gutter + _ScrollX + columnStart * columnWidth;
+					var endX;
+
+					if(currentLine == endLine)
+					{
+						endX = _X + gutter + _ScrollX + range.column2 * columnWidth;
+					}
+					else
+					{
+						endX = _X + gutter + _ScrollX + (lines[currentLine].text.length+1) * columnWidth;
+					}
+
+					graphics.drawRect(startX, startY, endX-startX, lineHeight, 0.5, [1.0, 1.0, 1.0, 1.0]);
+
+					if(currentLine == endLine)
+					{
+						break;
+					}
+					columnStart = 0;
+					currentLine++;
+				}
+				/*
+				var range = cursor.range;
+				var startY = _Y + _ScrollY + range.line1 * lineHeight;
+				var startX = _X + gutter + _ScrollX + range.column1 * columnWidth;
+				var endX;
+				if(range.line1 == range.line2)
+				{
+					endX = _X + gutter + _ScrollX + range.column2 * columnWidth;
+				}
+				else
+				{
+					endX = _X + gutter + _ScrollX + lines[range.line1].text.length * columnWidth;
+				}
+				graphics.drawRect(startX, startY, endX-startX, lineHeight, 0.5, [1.0, 1.0, 1.0, 1.0]);*/
+					
+				
+			}
 		}
 		if(graphics.setFont(_Font))
 		{	
@@ -272,6 +400,8 @@ function Pane(_Hydrogen)
 	this.openFile = _OpenFile;
 	this.onMouseWheel = _OnMouseWheel;
 	this.onMouseDown = _OnMouseDown;
+	this.onMouseMove = _OnMouseMove;
+	this.onMouseUp = _OnMouseUp;
 	this.setFont = _SetFont;
 	this.draw = _Draw;
 }
