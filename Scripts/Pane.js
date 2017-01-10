@@ -96,6 +96,11 @@ function Pane(_Hydrogen)
 		var firstColumn = Math.floor(-_ScrollX / columnWidth);
 		var firstColumnOrigin = _ScrollX % columnWidth;		
 
+		if(hitLine >= lines.length)
+		{
+			return null;
+		}
+
 		var line = lines[hitLine];
 		var hitColumn = Math.max(0, Math.min(line.text.length, firstColumn + Math.round((rx - firstColumnOrigin - gutter)/columnWidth)));
 
@@ -114,6 +119,10 @@ function Pane(_Hydrogen)
 		_Hydrogen.focus(this);
 
 		var hit = _PositionToLocation(rx, ry);
+		if(!hit)
+		{
+			return;
+		}
 
 		if(evt.shiftKey && _Cursors.length > 0)
 		{
@@ -285,12 +294,11 @@ function Pane(_Hydrogen)
 		var contentHeight = _Document.lines.length * lineHeight;
 		var contentWidth = _Document.maxLineLength * _Font.horizontalAdvance;
 
-		var minScrollY = Math.min(0, paneHeight - contentHeight);
+		var minScrollY = Math.min(0, paneHeight - contentHeight - 100);
 		var minScrollX = Math.min(0, paneWidth - contentWidth);
 
 		_ScrollY = Math.max(minScrollY, Math.min(0, _ScrollY));
 		_ScrollX = Math.max(minScrollX, Math.min(0, _ScrollX));
-
 	}
 
 	function _Draw(graphics)
@@ -308,18 +316,21 @@ function Pane(_Hydrogen)
 		var lineHeight = _Font.lineHeight;
 		var maxDescender = _Font.maxDescender;
 		var baseLine = lineHeight + maxDescender;
+
+		var renderScrollY = Math.round(_ScrollY);
+		var renderScrollX = Math.round(_ScrollX);
 		
 		var contentHeight = lines.length * lineHeight;
 		var visibleLines = Math.round(_Height / lineHeight) + 1;
-		var firstLine = Math.floor(-_ScrollY / lineHeight);
+		var firstLine = Math.floor(-renderScrollY / lineHeight);
 		var lastLine = Math.min(firstLine + visibleLines, lines.length-1);
-		var firstLineOrigin = _ScrollY % lineHeight;
+		var firstLineOrigin = renderScrollY % lineHeight;
 
 		var columnWidth = _Font.horizontalAdvance;
 		var visibleColumns = Math.round(_Width / columnWidth) + 1;
-		var firstColumn = Math.floor(-_ScrollX / columnWidth);
+		var firstColumn = Math.floor(-renderScrollX / columnWidth);
 		var lastColumn = firstColumn + visibleColumns;
-		var firstColumnOrigin = _ScrollX % columnWidth;
+		var firstColumnOrigin = renderScrollX % columnWidth;
 
 		var x = _X+gutter+firstColumnOrigin;
 		var y = _Y+firstLineOrigin;
@@ -330,8 +341,8 @@ function Pane(_Hydrogen)
 		for(var i = 0; i < _Cursors.length; i++)
 		{
 			var cursor = _Cursors[i];
-			var cursorY = _Y + _ScrollY + cursor.line * lineHeight;
-			var cursorX = _X + gutter + _ScrollX + cursor.column * columnWidth;
+			var cursorY = _Y + renderScrollY + cursor.line * lineHeight;
+			var cursorX = _X + gutter + renderScrollX + cursor.column * columnWidth;
 			graphics.drawRect(cursorX, cursorY, 1.0, lineHeight, 1.0, [1.0, 1.0, 1.0, 1.0]);
 			if(cursor.range)
 			{
@@ -343,17 +354,17 @@ function Pane(_Hydrogen)
 
 				while(true)
 				{
-					var startY = _Y + _ScrollY + currentLine * lineHeight;
-					var startX = _X + gutter + _ScrollX + columnStart * columnWidth;
+					var startY = _Y + renderScrollY + currentLine * lineHeight;
+					var startX = _X + gutter + renderScrollX + columnStart * columnWidth;
 					var endX;
 
 					if(currentLine == endLine)
 					{
-						endX = _X + gutter + _ScrollX + range.column2 * columnWidth;
+						endX = _X + gutter + renderScrollX + range.column2 * columnWidth;
 					}
 					else
 					{
-						endX = _X + gutter + _ScrollX + (lines[currentLine].text.length+1) * columnWidth;
+						endX = _X + gutter + renderScrollX + (lines[currentLine].text.length+1) * columnWidth;
 					}
 
 					graphics.drawRect(startX, startY, endX-startX, lineHeight, 0.5, [1.0, 1.0, 1.0, 1.0]);
@@ -367,16 +378,16 @@ function Pane(_Hydrogen)
 				}
 				/*
 				var range = cursor.range;
-				var startY = _Y + _ScrollY + range.line1 * lineHeight;
-				var startX = _X + gutter + _ScrollX + range.column1 * columnWidth;
+				var startY = _Y + renderScrollY + range.line1 * lineHeight;
+				var startX = _X + gutter + renderScrollX + range.column1 * columnWidth;
 				var endX;
 				if(range.line1 == range.line2)
 				{
-					endX = _X + gutter + _ScrollX + range.column2 * columnWidth;
+					endX = _X + gutter + renderScrollX + range.column2 * columnWidth;
 				}
 				else
 				{
-					endX = _X + gutter + _ScrollX + lines[range.line1].text.length * columnWidth;
+					endX = _X + gutter + renderScrollX + lines[range.line1].text.length * columnWidth;
 				}
 				graphics.drawRect(startX, startY, endX-startX, lineHeight, 0.5, [1.0, 1.0, 1.0, 1.0]);*/
 					
