@@ -104,7 +104,13 @@ function Pane(_Hydrogen)
 	var _Font;
 
 	var _GutterPadding = 10.0;
-	var _LineLabelColor = [0.6, 0.6, 0.6, 1.0];
+	var _LineHeightScale = 1.5;
+	var _CodeColor = [1.0, 1.0, 1.0, 1.0];
+	var _CursorColor = [1.0, 0.7, 0.0, 1.0];
+	var _LineLabelColor = [0.3, 0.3, 0.3, 1.0];
+	var _SelectionColor = [0.2, 0.2, 0.2, 1.0];
+	var _HighlightColor = [0.07, 0.07, 0.07, 1.0];
+	var _NumTabSpaces = 4;
 
 	var _ScrollX = 0.0;
 	var _ScrollY = 0.0;
@@ -165,12 +171,21 @@ function Pane(_Hydrogen)
     {
     	_Document = new Document(_Hydrogen);
     	_Document.fromFile(file);
+    	_Cursors = [];
     }
 
 	function _OnPaste()
 	{
 
 	}
+
+	document.addEventListener('paste', function(e){
+		console.log(e.clipboardData);/*
+    if(e.clipboardData.types.indexOf('text/html') > -1){
+        processDataFromClipboard(e.clipboardData.getData('text/html'));
+        e.preventDefault(); // We are already handling the data from the clipboard, we do not want it inserted into the document
+    }*/
+});
 
 	function _PositionToLocation(rx, ry)
 	{
@@ -179,7 +194,7 @@ function Pane(_Hydrogen)
 		var maxLabelWidth = _Document.maxLineDigits * _Font.horizontalAdvance;
 		var gutter = _GutterPadding + maxLabelWidth + _GutterPadding;
 
-		var lineHeight = _Font.lineHeight;
+		var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
 		var firstLine = Math.floor(-_ScrollY / lineHeight);
 		
 		var firstLineOrigin = _ScrollY % lineHeight;
@@ -187,8 +202,6 @@ function Pane(_Hydrogen)
 		var hitLine = firstLine + Math.floor((ry - firstLineOrigin)/lineHeight);
 
 		var columnWidth = _Font.horizontalAdvance;
-		var firstColumn = Math.floor(-_ScrollX / columnWidth);
-		var firstColumnOrigin = _ScrollX % columnWidth;		
 
 		if(hitLine >= lines.length)
 		{
@@ -196,7 +209,55 @@ function Pane(_Hydrogen)
 		}
 
 		var line = lines[hitLine];
-		var hitColumn = Math.max(0, Math.min(line.text.length, firstColumn + Math.round((rx - firstColumnOrigin - gutter)/columnWidth)));
+
+		var t = line.text;
+		var tl = t.length;
+		var x = _ScrollX + gutter;
+
+		var hitColumn = -1;
+		for(var i = 0; i < tl; i++)
+		{
+			var c = t.charCodeAt(i);
+			var lx = x;
+			switch(c)
+			{
+				case 9:
+					x += columnWidth * _NumTabSpaces;
+					break;
+				default:
+					x += columnWidth;
+					break;
+			}
+			if(rx >= lx && rx <= x)
+			{
+				// If we hit more than halfway through the column, then put the cursor on the next one.
+				if(rx > lx + (x - lx)/2.0)
+				{
+					hitColumn = i + 1;	
+				}
+				else
+				{
+					hitColumn = i;
+				}
+				break;
+			}
+		}
+		if(hitColumn === -1)
+		{
+			if(rx > x)
+			{
+				hitColumn = tl;
+			}
+			else
+			{
+				hitColumn = 0;
+			}
+		}
+		/*var firstColumn = Math.floor(-_ScrollX / columnWidth);
+		var firstColumnOrigin = _ScrollX % columnWidth;		
+
+		console.log(firstColumn, firstColumnOrigin);
+		var hitColumn = Math.max(0, Math.min(line.text.length, firstColumn + Math.round((rx - firstColumnOrigin - gutter)/columnWidth)));*/
 
 		return { line:hitLine, column:hitColumn };
 	}
@@ -275,7 +336,7 @@ function Pane(_Hydrogen)
 		{
 			if(!evt.metaKey)
 			{
-				_Cursors = [];	
+				_Cursors = [];
 			}
 			
 			var cursor = new Cursor();
@@ -468,7 +529,7 @@ function Pane(_Hydrogen)
 		var paneWidth = _Width - gutter;
 		var paneHeight = _Height;
 
-		var lineHeight = _Font.lineHeight;
+		var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
 		var contentHeight = _Document.lines.length * lineHeight;
 		var contentWidth = _Document.maxLineLength * _Font.horizontalAdvance;
 
@@ -479,19 +540,111 @@ function Pane(_Hydrogen)
 		_ScrollX = Math.max(minScrollX, Math.min(0, _ScrollX));
 	}
 
+	function _LineWidth(line, start, end)
+	{
+		var columnWidth = _Font.horizontalAdvance;
+		var t = line.text;
+		var tl = t.length;
+		var x = 0;
+		for(var i = start; i < end; i++)
+		{
+			var c = t.charCodeAt(i);
+			switch(c)
+			{
+				case 9:
+					x += columnWidth * _NumTabSpaces;
+					break;
+				default:
+					x += columnWidth;
+					break;
+			}
+		}
+		return x;
+	}
+
+	function _VisibleColumns(line, start, end)
+	{
+		var columnWidth = _Font.horizontalAdvance;
+		var t = line.text;
+		var tl = t.length;
+
+		var first = -1;
+		var firstX = 0;
+		var last = tl-1;
+		var x = 0;
+
+		for(var i = 0; i < tl; i++)
+		{
+			var c = t.charCodeAt(i);
+			var lx = x;
+			switch(c)
+			{
+				case 9:
+					x += columnWidth * _NumTabSpaces;
+					break;
+				default:
+					x += columnWidth;
+					break;
+			}
+
+			if(x > start)
+			{
+				first = i;
+				firstX = lx;
+				break;
+			}
+		}
+		if(first === -1)
+		{
+			first = t.length;
+			firstX = x;
+		}
+		for(var i = first; i < tl; i++)
+		{
+			var c = t.charCodeAt(i);
+			switch(c)
+			{
+				case 9:
+					x += columnWidth * _NumTabSpaces;
+					break;
+				default:
+					x += columnWidth;
+					break;
+			}
+
+			if(x >= end)
+			{
+				last = i;
+				break;
+			}
+		}
+		return {first:first, firstX:firstX, last:last};
+	}
+
+
+var drawCount = 0;
 	function _Draw(graphics)
 	{
+		if(drawCount > 1)
+		{
+			return;
+		}
+
 		if(!_Document)
 		{
 			return;
 		}
+		//_ScrollX -= 0.2;
+		//drawCount++;
+		graphics.setTabSpaces(_NumTabSpaces);
 		var lines = _Document.lines;
 
 		var maxLabelWidth = _Document.maxLineDigits * _Font.horizontalAdvance;
 		var gutter = _GutterPadding + maxLabelWidth + _GutterPadding;
 
 		var glyphMap = _Font.map;
-		var lineHeight = _Font.lineHeight;
+		var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
+		var cursorHeight = _Font.lineHeight;
 		var maxDescender = _Font.maxDescender;
 		var baseLine = lineHeight + maxDescender;
 
@@ -506,11 +659,6 @@ function Pane(_Hydrogen)
 
 		var columnWidth = _Font.horizontalAdvance;
 		var visibleColumns = Math.round(_Width / columnWidth) + 1;
-		var firstColumn = Math.floor(-renderScrollX / columnWidth);
-		var lastColumn = firstColumn + visibleColumns;
-		var firstColumnOrigin = renderScrollX % columnWidth;
-
-		var x = _X+gutter+firstColumnOrigin;
 		var y = _Y+firstLineOrigin;
 
 		graphics.pushClip(_X, _Y, _Width, _Height);
@@ -519,9 +667,6 @@ function Pane(_Hydrogen)
 		for(var i = 0; i < _Cursors.length; i++)
 		{
 			var cursor = _Cursors[i];
-			var cursorY = _Y + renderScrollY + cursor.line * lineHeight;
-			var cursorX = _X + gutter + renderScrollX + cursor.column * columnWidth;
-			graphics.drawRect(cursorX, cursorY, 1.0, lineHeight, 1.0, [1.0, 1.0, 1.0, 1.0]);
 			if(cursor.hasRange)
 			{
 				var currentLine = cursor.lineFrom;
@@ -530,20 +675,25 @@ function Pane(_Hydrogen)
 
 				while(true)
 				{
-					var startY = _Y + renderScrollY + currentLine * lineHeight;
-					var startX = _X + gutter + renderScrollX + columnStart * columnWidth;
+					var line = lines[currentLine];
+
+					var startY = Math.round(_Y + renderScrollY + currentLine * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
+					var startX = Math.max(gutter, _X + gutter + renderScrollX + _LineWidth(line, 0, columnStart));//columnStart * columnWidth;
 					var endX;
 
 					if(currentLine == endLine)
 					{
-						endX = _X + gutter + renderScrollX + cursor.columnTo * columnWidth;
+						endX = _X + gutter + renderScrollX + _LineWidth(line, 0, cursor.columnTo);//cursor.columnTo * columnWidth;
 					}
 					else
 					{
-						endX = _X + gutter + renderScrollX + (lines[currentLine].text.length+1) * columnWidth;
+						endX = _X + gutter + renderScrollX + _LineWidth(line, 0, line.text.length) + columnWidth;//(line.text.length+1) * columnWidth;
 					}
 
-					graphics.drawRect(startX, startY, endX-startX, lineHeight, 0.5, [1.0, 1.0, 1.0, 1.0]);
+					if(endX > startX)
+					{
+						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, _SelectionColor);
+					}
 
 					if(currentLine == endLine)
 					{
@@ -552,31 +702,36 @@ function Pane(_Hydrogen)
 					columnStart = 0;
 					currentLine++;
 				}
-				/*
-				var range = cursor.range;
-				var startY = _Y + renderScrollY + range.line1 * lineHeight;
-				var startX = _X + gutter + renderScrollX + range.column1 * columnWidth;
-				var endX;
-				if(range.line1 == range.line2)
-				{
-					endX = _X + gutter + renderScrollX + range.column2 * columnWidth;
-				}
-				else
-				{
-					endX = _X + gutter + renderScrollX + lines[range.line1].text.length * columnWidth;
-				}
-				graphics.drawRect(startX, startY, endX-startX, lineHeight, 0.5, [1.0, 1.0, 1.0, 1.0]);*/
-					
-				
+			}
+			else
+			{
+				var startY = Math.round(_Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
+				graphics.drawRect(0, startY, _Width, lineHeight, 1.0, _HighlightColor);
+			}
+			var cursorY = _Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
+			var cursorX = _X + gutter + renderScrollX + _LineWidth(lines[cursor.line], 0, cursor.column);
+			if(cursorX+1 > gutter)
+			{
+				graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, _CursorColor);
 			}
 		}
-		if(graphics.setFont(_Font))
+
+		graphics.pushClip(_X+gutter, _Y, _Width-gutter, _Height);
+		if(graphics.setFont(_Font, 1.0, _CodeColor))
 		{	
-			graphics.pushClip(_X+gutter, _Y, _Width-gutter, _Height);
 			for(var i = firstLine; i <= lastLine; i++)
 			{
 				var line = lines[i];
-				graphics.drawText(x, y+baseLine, line.text, firstColumn, lastColumn);
+
+				//var firstColumn = Math.floor(-renderScrollX / columnWidth);
+				//var lastColumn = firstColumn + visibleColumns;
+				//var firstColumnOrigin = renderScrollX % columnWidth;
+
+				var visRange = _VisibleColumns(line, -renderScrollX, _Width - gutter - renderScrollX);
+
+				var x = visRange.firstX;//_X+gutter+firstColumnOrigin;
+
+				graphics.drawText(renderScrollX+gutter+x, y+baseLine, line.text, visRange.first, visRange.last);
 				y += lineHeight;
 			}
 			graphics.popClip();
@@ -585,7 +740,7 @@ function Pane(_Hydrogen)
 			if(graphics.setFont(_Font, 1.0, _LineLabelColor))
 			{	
 				var x = _X + _GutterPadding + maxLabelWidth;
-				var y = _Y+firstLineOrigin;
+				var y = _Y + firstLineOrigin;
 				for(var i = firstLine; i <= lastLine; i++)
 				{
 					var line = lines[i];
@@ -594,10 +749,9 @@ function Pane(_Hydrogen)
 					y += lineHeight;
 				}
 			}
-			graphics.popClip();
 		}
-
 		graphics.popClip();
+		
 	}
 
 	this.place = _Place;

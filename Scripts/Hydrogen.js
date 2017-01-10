@@ -26,8 +26,8 @@ function Hydrogen(_Canvas)
 		_SizeToFit();	
 	}
 
-	_AddPane(0.5, 1.0);
-	_AddPane(0.5, 1.0);
+	_AddPane(1.0, 1.0);
+	//_AddPane(0.5, 1.0);
 
 	function _OnResize()
 	{
@@ -223,7 +223,7 @@ function Hydrogen(_Canvas)
 		var elapsedS = elapsed/1000.0;
 		_UpdateTime = now;
 
-		_Graphics.clear();
+		_Graphics.clear([0.12, 0.12, 0.12, 1.0]);
 
 		for(var i = 0; i < _Panes.length; i++)
 		{

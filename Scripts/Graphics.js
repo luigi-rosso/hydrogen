@@ -323,9 +323,9 @@ var Graphics = function (canvas)
         return _ViewportHeight;
     });
 
-    var _Clear = function()
+    var _Clear = function(color)
     {
-        _GL.clearColor(0.0, 0.0, 0.0, 1.0);
+        _GL.clearColor(color[0], color[1], color[2], color[3]);
         _GL.disable(_GL.DEPTH_TEST);
         _GL.clear(_GL.COLOR_BUFFER_BIT);
         _GL.depthMask(false);
@@ -445,10 +445,12 @@ var Graphics = function (canvas)
         return true;
     };
 
+    var _TabSpaces = 4;
     var _DrawText = function(x, y, t, offset, lastChar)
     {
         //x = Math.round(x);
         //y = Math.round(y);
+        var startX = x;
 
         offset |= 0;
         if(lastChar == undefined)
@@ -465,13 +467,18 @@ var Graphics = function (canvas)
         for(var i = offset; i <= lastChar; i++)
         {
             var c = t.charCodeAt(i);
-
+            var isTab = false;
             switch(c)
             {
                 case 32:        // SPACE
-                case 9: 
-                case 13:        // TAB - for now we translate a tab to a space
+                case 13: 
                     c = 32;
+                    break;
+
+
+                case 9:        // TAB - for now we translate a tab to a space
+                    c = 32;
+                    isTab = true;
                     break;
             }
 
@@ -505,7 +512,14 @@ var Graphics = function (canvas)
                 
                 _GL.drawArrays(_GL.TRIANGLE_STRIP, g.bufferIndex*4, 4);
             }
-            x += g.ha;
+            if(isTab)
+            {
+                x = startX + Math.floor(((x-startX) / (_TabSpaces*g.ha))+1)*(_TabSpaces*g.ha);
+            }
+            else
+            {
+                x += g.ha;    
+            }
             p = c;
         }
     };
@@ -642,4 +656,8 @@ var Graphics = function (canvas)
 
     this.init = _Initialize;
     this.clear = _Clear;
+    this.setTabSpaces = function(n)
+    {
+        _TabSpaces = n;
+    };
 };
