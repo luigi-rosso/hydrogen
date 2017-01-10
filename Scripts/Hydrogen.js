@@ -161,6 +161,14 @@ function Hydrogen(_Canvas)
 		{
 			evt.preventDefault();
 		}
+
+		switch(evt.keyCode)
+		{
+			case 8:
+				_FocusUI.onKeyPress(evt);
+				break;
+		}
+
         
 	}
 
