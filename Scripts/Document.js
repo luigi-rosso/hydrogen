@@ -1,8 +1,9 @@
 function Document(_Hydrogen)
 {
+	var _This = this;
 	var _LineBreak = '\n';
+	var _Tab = '\t';
 	var _Lines = [];
-	var _MaxLineDigits = 0;
 	var _MaxLineLength = 0;
 
 	function _FromFile(file)
@@ -17,48 +18,64 @@ function Document(_Hydrogen)
         reader.readAsText(file);
 	}
 
-	function _SetContents(text)
+	function _SetContents(text, silent)
 	{
 		var start = Date.now();
 		_Lines = [];
 		_MaxLineLength = 0;
 
-		var lastFoundIndex = 0;
-		while(lastFoundIndex != -1)
+		_Lines = text.split(_LineBreak);
+		for(var i = 0; i < _Lines.length; i++)
 		{
-			var index = Array.prototype.indexOf.call(text, _LineBreak, lastFoundIndex)
-			
-			var lineText = text.substring(lastFoundIndex, index == -1 ? undefined : index); 
-			_Lines.push({
-				"label":(_Lines.length+1).toString(),
-				"text":lineText
-			});
-			if(lineText.length > _MaxLineLength)
+			var line = _Lines[i];
+			if(line.length > _MaxLineLength)
 			{
-				_MaxLineLength = lineText.length;
+				_MaxLineLength = line.length;
 			}
-			lastFoundIndex = index == -1 ? index : index+1;
 		}
-
-		_MaxLineDigits = _Lines.length.toString().length;
 
 		var end = Date.now();
 
 		var elapsed = end-start;
 		console.log("Document.parse took:", elapsed);
+		if(!silent && _This.onContentsChange)
+		{
+			_This.onContentsChange();
+		}
 	}
 
 
 	this.fromFile = _FromFile;
+	this.setContents = _SetContents;
 	
     this.__defineGetter__("lines", function()
     {
         return _Lines;
     });
 
+    this.__defineGetter__("lineBreak", function()
+    {
+        return _LineBreak;
+    });
+
+    this.__defineGetter__("text", function()
+    {
+        return _Lines.join(_LineBreak);
+    });
+
+    this.__defineGetter__("tab", function()
+    {
+        return _Tab;
+    });
+
+    this.__defineSetter__("text", function(t)
+    {
+    	_SetContents(t);
+    });
+
     this.__defineGetter__("maxLineDigits", function()
     {
-        return _MaxLineDigits;
+        return _Lines.length.toString().length;
     });
 
     this.__defineGetter__("maxLineLength", function()

@@ -8,6 +8,7 @@ function Hydrogen(_Canvas)
 	var _Panes = [];
 	var _MouseCaptureUI;
 	var _FocusUI;
+	var _IsOSX = navigator.userAgent.indexOf('Mac OS X') != -1;
 
 	if(!_Graphics.init())
 	{
@@ -63,9 +64,29 @@ function Hydrogen(_Canvas)
         }
 	}
 
-	function _OnPaste()
+	function _OnPaste(e)
 	{
+		_FocusUI.onPaste(e.clipboardData);
+	}
 
+	function _OnCopy(e)
+	{
+		var data = _FocusUI.onCopy();
+		if(data)
+		{
+			console.log("SETTING DATA", data);
+			e.clipboardData.setData("text/plain", data);
+			e.preventDefault();
+		}
+	}
+
+	function _OnCut(e)
+	{
+		var data = _FocusUI.onCut();
+		if(data)
+		{
+			e.clipboardData.setData('text/plain', data);
+		}
 	}
 
 	function _OnMouseWheel(evt)
@@ -161,11 +182,38 @@ function Hydrogen(_Canvas)
 		{
 			evt.preventDefault();
 		}
-
+		
 		switch(evt.keyCode)
 		{
 			case 8:
 				_FocusUI.onKeyPress(evt);
+				break;
+			case 90:
+				if(_IsOSX)
+				{
+					if(evt.metaKey)
+					{
+						if(evt.shiftKey)
+						{
+							_FocusUI.redo();
+						}
+						else
+						{
+							_FocusUI.undo();
+						}
+					}
+				}
+				else if(evt.ctrlKey)
+				{
+					if(evt.shiftKey)
+					{
+						_FocusUI.redo();
+					}
+					else
+					{
+						_FocusUI.undo();
+					}
+				}
 				break;
 		}
 
@@ -174,12 +222,24 @@ function Hydrogen(_Canvas)
 
 	function _OnKeyPress(evt)
 	{
-		evt.stopPropagation();
-        evt.preventDefault();
-
 		if(_FocusUI)
 		{
-			_FocusUI.onKeyPress(evt);
+			if(_IsOSX)
+			{
+				switch(evt.keyCode)
+				{
+					case 99: // C copy
+					case 118: // Command V paste.
+					case 120: // cut
+					case 122: // z undo
+						return;
+				}
+			}
+			if(_FocusUI.onKeyPress(evt))
+			{
+				evt.stopPropagation();
+				evt.preventDefault();
+			}
 		}
 	}
 
@@ -187,7 +247,9 @@ function Hydrogen(_Canvas)
 	window.addEventListener('resize', _OnResize, false);
     document.body.addEventListener('dragover', _OnDragOver, false);
     document.body.addEventListener('drop', _OnDragDrop, false);
-    document.body.addEventListener('paste', _OnPaste, false);
+    document.body.addEventListener('paste', _OnPaste, true);
+    document.body.addEventListener('copy', _OnCopy, true);
+    document.body.addEventListener('cut', _OnCut, true);
     document.body.addEventListener('mousewheel', _OnMouseWheel, false);
     document.body.addEventListener('mousedown', _OnMouseDown, false);
     document.body.addEventListener('mousemove', _OnMouseMove, false);
