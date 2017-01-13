@@ -5,6 +5,7 @@ function Document(_Hydrogen)
 	var _Tab = '\t';
 	var _Lines = [];
 	var _MaxLineLength = 0;
+	var _NumTabSpaces = 4;
 
 	function _FromFile(file)
 	{
@@ -51,6 +52,11 @@ function Document(_Hydrogen)
     this.__defineGetter__("lines", function()
     {
         return _Lines;
+    });
+
+    this.__defineGetter__("numTabSpaces", function()
+    {
+    	return _NumTabSpaces;
     });
 
     this.__defineGetter__("lineBreak", function()

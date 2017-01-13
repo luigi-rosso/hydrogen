@@ -9,6 +9,7 @@ function Hydrogen(_Canvas)
 	var _MouseCaptureUI;
 	var _FocusUI;
 	var _IsOSX = navigator.userAgent.indexOf('Mac OS X') != -1;
+	var _WillAdvanceNextFrame = true;
 
 	if(!_Graphics.init())
 	{
@@ -26,9 +27,6 @@ function Hydrogen(_Canvas)
 
 		_SizeToFit();	
 	}
-
-	_AddPane(1.0, 1.0);
-	//_AddPane(0.5, 1.0);
 
 	function _OnResize()
 	{
@@ -155,6 +153,7 @@ function Hydrogen(_Canvas)
 
 	function _OnMouseUp(evt)
 	{
+		console.log("UP");
 		evt.stopPropagation();
         evt.preventDefault();
 
@@ -182,11 +181,64 @@ function Hydrogen(_Canvas)
 		{
 			evt.preventDefault();
 		}
-		
+		console.log("KEY DOWN", evt.keyCode, evt.altKey);
 		switch(evt.keyCode)
 		{
+			case 38:
+				if(_IsOSX && evt.metaKey)
+				{
+					_FocusUI.cursorPageUp(evt.shiftKey);
+				}
+				else
+				{
+					_FocusUI.cursorUp(evt.shiftKey);	
+				}
+				evt.preventDefault();
+				break;
+			case 40:
+				if(_IsOSX && evt.metaKey)
+				{
+					_FocusUI.cursorPageDown(evt.shiftKey);
+				}
+				else
+				{
+					_FocusUI.cursorDown(evt.shiftKey);
+				}
+				evt.preventDefault();
+				break;
+			case 37:
+				if(_IsOSX && evt.metaKey)
+				{
+					_FocusUI.cursorHome(evt.shiftKey);
+				}
+				else if(evt.altKey)
+				{
+					_FocusUI.cursorWordLeft(evt.shiftKey);
+				}
+				else
+				{
+					_FocusUI.cursorLeft(evt.shiftKey);
+				}
+				evt.preventDefault();
+				break;
+			case 39:
+				if(_IsOSX && evt.metaKey)
+				{
+					_FocusUI.cursorEnd(evt.shiftKey);
+				}
+				else if(evt.altKey)
+				{
+					_FocusUI.cursorWordRight(evt.shiftKey);
+				}
+				else
+				{
+					_FocusUI.cursorRight(evt.shiftKey);
+				}
+				evt.preventDefault();
+				break;
 			case 8:
-				_FocusUI.onKeyPress(evt);
+				_FocusUI.backspace();
+				evt.preventDefault();
 				break;
 			case 90:
 				if(_IsOSX)
@@ -252,8 +304,8 @@ function Hydrogen(_Canvas)
     document.body.addEventListener('cut', _OnCut, true);
     document.body.addEventListener('mousewheel', _OnMouseWheel, false);
     document.body.addEventListener('mousedown', _OnMouseDown, false);
-    document.body.addEventListener('mousemove', _OnMouseMove, false);
-    document.body.addEventListener('mouseup', _OnMouseUp, false);
+    window.addEventListener('mousemove', _OnMouseMove, true);
+    window.addEventListener('mouseup', _OnMouseUp, true);
     document.body.addEventListener('keypress', _OnKeyPress, false);
     document.body.addEventListener('keydown', _OnKeyDown, false);
 
@@ -285,6 +337,16 @@ function Hydrogen(_Canvas)
 		var elapsedS = elapsed/1000.0;
 		_UpdateTime = now;
 
+		var redraw = false;
+		for(var i = 0; i < _Panes.length; i++)
+		{
+			var pane = _Panes[i];
+			if(pane.advance(elapsedS))
+			{
+				redraw = true;
+			}
+		}
+
 		_Graphics.clear([0.12, 0.12, 0.12, 1.0]);
 
 		for(var i = 0; i < _Panes.length; i++)
@@ -293,8 +355,28 @@ function Hydrogen(_Canvas)
 			pane.draw(_Graphics);
 		}
 
+		if(redraw)
+		{
+			_WillAdvanceNextFrame = true;
+			requestAnimFrame(_Update);
+		}
+		else
+		{
+			_WillAdvanceNextFrame = false;
+		}
+	}
+	this.scheduleUpdate = _ScheduleUpdate;
+	function _ScheduleUpdate()
+	{
+		if(_WillAdvanceNextFrame)
+		{
+			return;
+		}
+		_UpdateTime = Date.now();
+		_WillAdvanceNextFrame = true;
 		requestAnimFrame(_Update);
 	}
+
 	_Update();
 
     this.__defineGetter__("font", function()
@@ -304,4 +386,7 @@ function Hydrogen(_Canvas)
 
     this.captureMouse = _CaptureMouse;
     this.focus = _Focus;
+
+    _AddPane(1.0, 1.0);
+	//_AddPane(0.5, 1.0);
 }

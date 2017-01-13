@@ -6,6 +6,7 @@ function Pane(_Hydrogen)
 	var _Height = 0;
 	var _X2 = 0;
 	var _Y2 = 0;
+	var _DragScrollMargin = 50;
 
 	var _Font;
 
@@ -16,10 +17,12 @@ function Pane(_Hydrogen)
 	var _LineLabelColor = [0.3, 0.3, 0.3, 1.0];
 	var _SelectionColor = [0.2, 0.2, 0.2, 1.0];
 	var _HighlightColor = [0.07, 0.07, 0.07, 1.0];
-	var _NumTabSpaces = 4;
 
 	var _ScrollX = 0.0;
 	var _ScrollY = 0.0;
+	var _RenderScrollX = 0.0;
+	var _RenderScrollY = 0.0;
+	var _ScrollYVelocity = 0.0;
 
 	var _TriggeredScrollX = 0.0;
 	var _TriggeredScrollY = 0.0;
@@ -34,6 +37,7 @@ function Pane(_Hydrogen)
 	{
 		_Font = font;
 		_ClampScroll();
+		_Hydrogen.scheduleUpdate();
 	}
 
 	function _Place(x, y, width, height)
@@ -46,6 +50,7 @@ function Pane(_Hydrogen)
 		_Height = Math.round(height);
 
 		_ClampScroll();
+		_Hydrogen.scheduleUpdate();
 	}
 
     this.__defineGetter__("x", function()
@@ -88,6 +93,7 @@ function Pane(_Hydrogen)
     	};
     	_Document.fromFile(file);
     	_Cursors = [];
+    	_Hydrogen.scheduleUpdate();
     }
 
     var _Journal = [];
@@ -177,7 +183,11 @@ function Pane(_Hydrogen)
 
 		if(hitLine >= lines.length)
 		{
-			return null;
+			return { line:lines.length-1, column:lines[lines.length-1].length };
+		}
+		else if(hitLine < 0)
+		{
+			return { line:0, column:0 };	
 		}
 
 		var line = lines[hitLine];
@@ -187,6 +197,8 @@ function Pane(_Hydrogen)
 		var x = _ScrollX + gutter;
 
 		var hitColumn = -1;
+
+		var numTabSpaces = _Document.numTabSpaces;
 		for(var i = 0; i < tl; i++)
 		{
 			var c = t.charCodeAt(i);
@@ -194,7 +206,7 @@ function Pane(_Hydrogen)
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * _NumTabSpaces;
+					x += columnWidth * numTabSpaces;
 					break;
 				default:
 					x += columnWidth;
@@ -285,31 +297,12 @@ function Pane(_Hydrogen)
 				{
 					cursor.span(hit.line, hit.column, cursor.lineTo, cursor.columnTo, false);
 				}
-				// atEnd = false;
-				/*cursor.range = 
-				{
-					line1:line2,
-					column1:column2,
-					line2:maxLine,
-					column2:maxColumn
-				};*/
 			}
 			else 
 			{
 				cursor.span(cursor.lineFrom, cursor.columnFrom, hit.line, hit.column, true);
-				// at end = true
-				/*
-				cursor.range = 
-				{
-					line1:minLine,
-					column1:minColumn,
-					line2:line2,
-					column2:column2
-				};*/
-			}
 
-			//cursor.line = hit.line;
-			//cursor.column = hit.column;
+			}
 		}
 		else
 		{
@@ -322,18 +315,16 @@ function Pane(_Hydrogen)
 			cursor.place(hit.line, hit.column);
 			_Cursors.push(cursor);
 			_ValidateCursors();
-			/*
-			_Cursors.push(
-			{
-				line:hit.line,
-				column:hit.column
-			});*/
 		}
+
+		cursor.setPlacedColumn(_Document);
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
 
 		//console.log(evt);
 	}
 
-	function _EnsureCursorVisible()
+	function _EnsureCursorVisible(closest)
 	{
 		if(_Cursors.length === 0)
 		{
@@ -347,27 +338,47 @@ function Pane(_Hydrogen)
 		var renderScrollX = Math.round(_ScrollX);
 		
 		var contentHeight = lines.length * lineHeight;
-		var visibleLines = Math.round(_Height / lineHeight) + 1;
-		var firstLine = Math.floor(-renderScrollY / lineHeight);
-		var lastLine = Math.min(firstLine + visibleLines, lines.length-1);
+		var visibleLines = Math.floor(_Height / lineHeight);
+		var firstLine = Math.ceil(-renderScrollY / lineHeight);
+		var lastLine = Math.min(firstLine + visibleLines-1, lines.length-1); // visible lines - 1 as it's the last index
 
 		var isCursorVisible = false;
 		for(var i = 0; i < _Cursors.length; i++)
 		{
 			var cursor = _Cursors[i];
-			if( (cursor.lineFrom >= firstLine && cursor.lineFrom <= lastLine) ||
-				(cursor.lineTo >= firstLine && cursor.lineTo <= lastLine))
+			if(cursor.lineAt >= firstLine && cursor.lineAt <= lastLine)
 			{
 				isCursorVisible = true;
 				break;
 			}
 		}
-
 		if(!isCursorVisible)
 		{
 			var cursor = _Cursors[0];
-			_ScrollY = -cursor.lineFrom * lineHeight + _Height/2;
+			if(!closest)
+			{
+				_ScrollY = -cursor.lineAt * lineHeight + _Height/2;
+			}
+			else
+			{
+				var cursorTop = -cursor.lineAt * lineHeight;
+				//var cursorBottom = _Height - lineHeight - cursor.lineAt * lineHeight;
+
+				var cursorHeight = _Font.lineHeight;
+				var startY = cursor.lineAt * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0;
+				var cursorBottom = _Height - lineHeight - startY;
+
+				if(Math.abs(cursorTop - _ScrollY) < Math.abs(cursorBottom - _ScrollY))
+				{
+					_ScrollY = cursorTop;
+				}
+				else
+				{
+					_ScrollY = cursorBottom;
+				}
+			}
 			_ClampScroll();
+			_Hydrogen.scheduleUpdate();
 		}
 	}
 
@@ -382,15 +393,24 @@ function Pane(_Hydrogen)
 		{
 			return a.lineFrom - b.lineFrom;
 		});
+
+		// Merge overlaps.
+		for(var i = 0; i < _Cursors.length-1; i++)
+		{
+			var cursorA = _Cursors[i];
+			var cursorB = _Cursors[i+1];
+
+			if(cursorB.lineFrom < cursorA.lineTo || (cursorB.lineFrom == cursorA.lineTo && cursorB.columnFrom < cursorA.columnTo))
+			{
+				cursorA.span(cursorA.lineFrom, cursorA.columnFrom, cursorB.lineTo, cursorB.columnTo);
+				_Cursors.splice(i+1, 1);
+				i--;
+			}
+		}
 	}
 
-	function _OnMouseMove(evt, rx, ry)
+	function _DragCursor(rx, ry)
 	{
-		if(!_IsDragging || _Cursors.length == 0)
-		{
-			return;
-		}
-
 		var cursor = _Cursors[0];
 		if(!cursor.pivot)
 		{
@@ -403,44 +423,52 @@ function Pane(_Hydrogen)
 
 		var hit = _PositionToLocation(rx, ry);
 
-		cursor.line = hit.line;
-		cursor.column = hit.column;
+		//cursor.line = hit.line;
+		//cursor.column = hit.column;
 		
-		cursor.span(hit.line, hit.column, cursor.pivot.line, cursor.pivot.column);
-/*
-		if(hit.line == cursor.pivot.line)
+		var changed = cursor.span(hit.line, hit.column, cursor.pivot.line, cursor.pivot.column);
+		var sv;
+		if(ry <= _DragScrollMargin)
 		{
-			//cursor.span(lineFrom, columnFrom, lineTo, columnTo)
-			//cursor.span(hit.line, hit.column, hit.line, cursor.pivot.column);
-			cursor.range = 
-			{
-				line1:cursor.line,
-				column1:cursor.column < cursor.pivot.column ? cursor.column : cursor.pivot.column,
-				line2:cursor.line,
-				column2:cursor.column < cursor.pivot.column ? cursor.pivot.column : cursor.column,
-			};
+			var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
+			sv = lineHeight*25;
 		}
-		else if(hit.line < cursor.pivot.line)
+		else if(ry >= _Height - _DragScrollMargin)
 		{
-
-			cursor.range = 
-			{
-				line1:cursor.line,
-				column1:cursor.column,
-				line2:cursor.pivot.line,
-				column2:cursor.pivot.column
-			};
+			var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
+			sv = -lineHeight*25;
 		}
 		else
 		{
-			cursor.range = 
-			{
-				line2:cursor.line,
-				column2:cursor.column,
-				line1:cursor.pivot.line,
-				column1:cursor.pivot.column
-			};
-		}*/
+			sv = 0;
+		}
+
+		if(_ScrollYVelocity != sv)
+		{
+			_ScrollYVelocity = sv;
+			changed = true;
+		}
+
+		if(changed)
+		{
+			_Hydrogen.scheduleUpdate();
+		}
+	}
+
+	var _MouseX = 0;
+	var _MouseY = 0;
+	
+	function _OnMouseMove(evt, rx, ry)
+	{
+		_MouseX = rx;
+		_MouseY = ry;
+		if(!_IsDragging || _Cursors.length == 0)
+		{
+			return;
+		}
+		_IsDragging = true;
+
+		_DragCursor(rx, ry);
 	}
 
 	function _ChangeComplete()
@@ -617,6 +645,7 @@ function Pane(_Hydrogen)
 			cursor.place(lineFrom, cursor.columnFrom - columnsRemoved);
 			columnsRemoved += columnsRemovedThisIteration;
 		}
+		_Hydrogen.scheduleUpdate();
 	}
 
 	function _ReplaceSelectionWith(text, transformer)
@@ -690,6 +719,7 @@ function Pane(_Hydrogen)
 		_ClampScroll();
 		_ValidateCursors();
 		_EnsureCursorVisible();
+		_Hydrogen.scheduleUpdate();
 	}
 
 	function _Undo()
@@ -727,9 +757,6 @@ function Pane(_Hydrogen)
 			case 13: // Enter
 				_Enter();
 				return true;
-			case 8: // Backspace
-				_Backspace();
-				return true;
 			case 46: // Delete
 				_ReplaceSelectionWith("");
 				return true;
@@ -749,15 +776,126 @@ function Pane(_Hydrogen)
 	function _OnMouseUp(evt, rx, ry)
 	{
 		_IsDragging = false;
+		_ScrollYVelocity = 0;
+		_ValidateCursors();
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
 	}
 
 	function _OnMouseWheel(evt)
 	{
-		_ScrollY -= evt.deltaY;
-		_ScrollX -= evt.deltaX;
+		_ScrollY -= evt.deltaY / 2.0;
+		_ScrollX -= evt.deltaX / 2.0;
 
 		_ClampScroll();
+		_ScrollYVelocity = 0;
+		_Hydrogen.scheduleUpdate();
 	}
+
+
+	function _MoveCursors(x, y, span, noWrap)
+	{
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			cursor.move(x, y, _Document, span, noWrap);
+			if(x !== 0)
+			{
+				cursor.setPlacedColumn(_Document);
+			}
+		}
+		_ValidateCursors();
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
+	}
+
+	function _CursorUp(span)
+	{
+		_MoveCursors(0, -1, span);	
+	}
+
+	function _CursorDown(span)
+	{
+		_MoveCursors(0, 1, span);	
+	}
+
+	function _CursorLeft(span)
+	{
+		_MoveCursors(-1, 0, span);
+	}
+
+	function _CursorRight(span)
+	{
+		_MoveCursors(1, 0, span);
+	}
+
+	function _CursorWordLeft(span)
+	{
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			cursor.wordBoundary(-1, _Document,span); 
+		}
+		_ValidateCursors();
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
+	}
+
+	function _CursorWordRight(span)
+	{
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			cursor.wordBoundary(1, _Document, span);
+		}
+		_ValidateCursors();
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
+	}
+
+	function _CursorHome(span)
+	{
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			cursor.home(_Document, span);
+		}
+		_ValidateCursors();
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
+	}
+
+	function _CursorEnd(span)
+	{
+		_MoveCursors(Number.MAX_SAFE_INTEGER, 0, span, true);
+	}
+
+	function _CursorPageDown(span)
+	{
+		var y = _Document.lines.length-1;
+		var x =  _Document.lines[y].length;
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			cursor.moveTo(x, y, _Document, span);
+		}
+		_ValidateCursors();
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
+	}
+
+	function _CursorPageUp(span)
+	{
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			cursor.moveTo(0, 0, _Document, span);
+		}
+		_ValidateCursors();
+		_EnsureCursorVisible(true);
+		_Hydrogen.scheduleUpdate();
+	}
+
 
 	function _ClampScroll()
 	{
@@ -788,13 +926,14 @@ function Pane(_Hydrogen)
 		var t = line;
 		var tl = t.length;
 		var x = 0;
+		var numTabSpaces = _Document.numTabSpaces;
 		for(var i = start; i < end; i++)
 		{
 			var c = t.charCodeAt(i);
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * _NumTabSpaces;
+					x += columnWidth * numTabSpaces;
 					break;
 				default:
 					x += columnWidth;
@@ -815,6 +954,8 @@ function Pane(_Hydrogen)
 		var last = tl-1;
 		var x = 0;
 
+		var numTabSpaces = _Document.numTabSpaces;
+
 		for(var i = 0; i < tl; i++)
 		{
 			var c = t.charCodeAt(i);
@@ -822,7 +963,7 @@ function Pane(_Hydrogen)
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * _NumTabSpaces;
+					x += columnWidth * numTabSpaces;
 					break;
 				default:
 					x += columnWidth;
@@ -847,7 +988,7 @@ function Pane(_Hydrogen)
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * _NumTabSpaces;
+					x += columnWidth * numTabSpaces;
 					break;
 				default:
 					x += columnWidth;
@@ -864,21 +1005,60 @@ function Pane(_Hydrogen)
 	}
 
 
-var drawCount = 0;
-	function _Draw(graphics)
+	function _Advance(elapsed)
 	{
-		if(drawCount > 1)
+		if(_ScrollYVelocity != 0.0)
 		{
-			return;
+			_ScrollY += _ScrollYVelocity * elapsed;
+			_ClampScroll();
+			if(_IsDragging)
+			{
+				_DragCursor(Math.min(_Width, Math.max(0, _MouseX)), Math.min(_Height, Math.max(0, _MouseY)));
+			}
 		}
 
+		var targetScrollY = Math.round(_ScrollY);
+		var targetScrollX = Math.round(_ScrollX);
+
+		var dx = targetScrollX - _RenderScrollX;
+		var dy = targetScrollY - _RenderScrollY;
+
+		var keepRendering = false;
+
+		var ds = Math.min(1.0, elapsed*30);
+
+		if(Math.abs(dx) < 0.2)
+		{
+			_RenderScrollX = targetScrollX;
+		}
+		else
+		{
+			_RenderScrollX += dx * ds;
+			keepRendering = true;
+		}
+		if(Math.abs(dy) < 0.2)
+		{
+			_RenderScrollY = targetScrollY;
+		}
+		else
+		{
+			_RenderScrollY += dy * ds;
+			keepRendering = true;
+		}
+
+		return keepRendering;
+	}
+
+	function _Draw(graphics)
+	{
 		if(!_Document)
 		{
 			return;
 		}
 		//_ScrollX -= 0.2;
 		//drawCount++;
-		graphics.setTabSpaces(_NumTabSpaces);
+
+		graphics.setTabSpaces(_Document.numTabSpaces);
 		var lines = _Document.lines;
 
 		var maxLabelWidth = _Document.maxLineDigits * _Font.horizontalAdvance;
@@ -890,8 +1070,8 @@ var drawCount = 0;
 		var maxDescender = _Font.maxDescender;
 		var baseLine = lineHeight + maxDescender;
 
-		var renderScrollY = Math.round(_ScrollY);
-		var renderScrollX = Math.round(_ScrollX);
+		var renderScrollY = _RenderScrollY;
+		var renderScrollX = _RenderScrollX;
 		
 		var contentHeight = lines.length * lineHeight;
 		var visibleLines = Math.round(_Height / lineHeight) + 1;
@@ -1026,7 +1206,19 @@ var drawCount = 0;
 	this.onCopy = _OnCopy;
 	this.onCut = _OnCut;
 	this.setFont = _SetFont;
+	this.advance = _Advance;
 	this.draw = _Draw;
 	this.undo = _Undo;
 	this.redo = _Redo;
+	this.backspace = _Backspace;
+	this.cursorUp = _CursorUp;
+	this.cursorDown = _CursorDown;
+	this.cursorLeft = _CursorLeft;
+	this.cursorRight = _CursorRight;
+	this.cursorWordLeft = _CursorWordLeft;
+	this.cursorWordRight = _CursorWordRight;
+	this.cursorHome = _CursorHome;
+	this.cursorEnd = _CursorEnd;
+	this.cursorPageDown = _CursorPageDown;
+	this.cursorPageUp = _CursorPageUp;
 }

@@ -418,8 +418,8 @@ var Graphics = function (canvas)
                 _GL.pixelStorei(_GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
                 
                 //_GL.pixelStorei(_GL.UNPACK_ALIGNMENT, 1);
-                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MAG_FILTER, _GL.LINEAR);
-                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MIN_FILTER, _GL.LINEAR);
+                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MAG_FILTER, _GL.NEAREST);
+                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MIN_FILTER, _GL.NEAREST);
                 _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_WRAP_S, _GL.CLAMP_TO_EDGE);
                 _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_WRAP_T, _GL.CLAMP_TO_EDGE);
 
