@@ -7,6 +7,8 @@ function Pane(_Hydrogen)
 	var _X2 = 0;
 	var _Y2 = 0;
 	var _DragScrollMargin = 50;
+	var _DoubleClickDelay = 300;
+	var _HistoryCaptureDelay = 500;
 
 	var _Font;
 
@@ -237,15 +239,10 @@ function Pane(_Hydrogen)
 				hitColumn = 0;
 			}
 		}
-		/*var firstColumn = Math.floor(-_ScrollX / columnWidth);
-		var firstColumnOrigin = _ScrollX % columnWidth;		
-
-		console.log(firstColumn, firstColumnOrigin);
-		var hitColumn = Math.max(0, Math.min(line.length, firstColumn + Math.round((rx - firstColumnOrigin - gutter)/columnWidth)));*/
-
 		return { line:hitLine, column:hitColumn };
 	}
 
+	var _LastMouseDown = Date.now();
 	function _OnMouseDown(evt, rx, ry)
 	{
 		if(!_Document)
@@ -253,6 +250,9 @@ function Pane(_Hydrogen)
 			return;
 		}
 
+		var now = Date.now();
+		var spanWord = !_IsDragging && (now-_LastMouseDown < _DoubleClickDelay || evt.altKey) && _Cursors.length === 1;
+		_LastMouseDown = now;
 		_IsDragging = true;
 		_Hydrogen.captureMouse(this);
 		_Hydrogen.focus(this);
@@ -305,7 +305,7 @@ function Pane(_Hydrogen)
 			}
 		}
 		else
-		{
+		{			
 			if(!evt.metaKey)
 			{
 				_Cursors = [];
@@ -314,14 +314,17 @@ function Pane(_Hydrogen)
 			var cursor = new Cursor();
 			cursor.place(hit.line, hit.column);
 			_Cursors.push(cursor);
+
+			if(spanWord)
+			{
+				cursor.spanWord(_Document);
+			}
 			_ValidateCursors();
 		}
 
 		cursor.setPlacedColumn(_Document);
 		_EnsureCursorVisible(true);
 		_Hydrogen.scheduleUpdate();
-
-		//console.log(evt);
 	}
 
 	function _EnsureCursorVisible(closest)
@@ -494,7 +497,7 @@ function Pane(_Hydrogen)
 	    	}
 		}
 		clearTimeout(_ChangeTimeout);
-		_ChangeTimeout = setTimeout(_ChangeComplete, 1000);
+		_ChangeTimeout = setTimeout(_ChangeComplete, _HistoryCaptureDelay);
 		_TriggeredScrollX = _ScrollX;
 		_TriggeredScrollY = _ScrollY;
 	}
@@ -750,7 +753,7 @@ function Pane(_Hydrogen)
 
 	function _OnKeyPress(evt)
 	{
-		console.log("KEY PRESS", evt.keyCode, evt);
+		//console.log("KEY PRESS", evt.keyCode, evt);
 		
 		switch(evt.keyCode)
 		{
@@ -766,7 +769,7 @@ function Pane(_Hydrogen)
 		{
 			var str = String.fromCharCode(evt.charCode);
 			_ReplaceSelectionWith(str);
-			console.log(str);
+			//console.log(str);
 			return true;
 		}
 		

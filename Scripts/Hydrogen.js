@@ -72,7 +72,7 @@ function Hydrogen(_Canvas)
 		var data = _FocusUI.onCopy();
 		if(data)
 		{
-			console.log("SETTING DATA", data);
+			//console.log("SETTING DATA", data);
 			e.clipboardData.setData("text/plain", data);
 			e.preventDefault();
 		}
@@ -153,7 +153,6 @@ function Hydrogen(_Canvas)
 
 	function _OnMouseUp(evt)
 	{
-		console.log("UP");
 		evt.stopPropagation();
         evt.preventDefault();
 
@@ -181,7 +180,7 @@ function Hydrogen(_Canvas)
 		{
 			evt.preventDefault();
 		}
-		console.log("KEY DOWN", evt.keyCode, evt.altKey);
+		//console.log("KEY DOWN", evt.keyCode, evt.altKey);
 		switch(evt.keyCode)
 		{
 			case 38:

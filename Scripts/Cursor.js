@@ -93,6 +93,27 @@ function Cursor(data)
         };
     };
 
+    function _SpanWord(doc)
+    {
+        var line = doc.lines[_LineFrom];
+        var c = line.charCodeAt(_ColumnTo);
+        if(_IsSpace(c))
+        {
+            _ColumnFrom = _FindFirstNonSpace(_ColumnTo, -1, line)+1;
+            _ColumnTo = _FindFirstNonSpace(_ColumnTo, 1, line);
+        }
+        else if(_IsSymbol(c))
+        {
+            _ColumnFrom = _FindFirstNonSymbol(_ColumnTo, -1, line)+1;
+            _ColumnTo = _FindFirstNonSymbol(_ColumnTo, 1, line);
+        }
+        else
+        {
+            _ColumnFrom = _FindNonWordCharacter(_ColumnTo, -1, line)+1;
+            _ColumnTo = _FindNonWordCharacter(_ColumnTo, 1, line);
+        }
+    }
+
     function _Span(lineFrom, columnFrom, lineTo, columnTo, atEnd)
     {
         var s = _Serialize();
@@ -151,6 +172,7 @@ function Cursor(data)
     };
 
     this.span = _Span;
+    this.spanWord = _SpanWord;
     this.serialize = _Serialize;
 
     this.clone = function(offsetLines, offsetColumns)
