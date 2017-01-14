@@ -23,4 +23,4 @@ Really still an experiment, needs to be modularized a bit better...For now just 
 5. Submit a pull request.
 
 ## License
-Hold please...
+MIT
