@@ -275,7 +275,7 @@ function Hydrogen(_Canvas)
 	{
 		if(_FocusUI)
 		{
-			if(_IsOSX)
+			if(_IsOSX && evt.metaKey)
 			{
 				switch(evt.keyCode)
 				{

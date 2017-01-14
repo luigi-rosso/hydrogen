@@ -496,7 +496,7 @@ var Graphics = function (canvas)
                     x += k.x;
                 }
             }*/
-            if(g.bufferIndex != undefined)
+            if(g.bufferIndex !== -1)
             {
                 if(g.ti != _CurrentFontTexture)
                 {

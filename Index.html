@@ -8,6 +8,33 @@
         {
             margin:0;
         }
+        #cursors
+        {
+            position:absolute;
+        }
+        @keyframes pulse 
+        {
+            0% { opacity: 1; }
+            20% { opacity: 1; }
+            50% { opacity: 0; }
+            80% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+
+        #cursors div
+        {
+            width:1px;
+            height:20px;
+            background-color:#00ff00;
+            position:absolute;
+            opacity:translate(0px, 0px);
+
+            animation-duration: 1.2s;
+            animation-fill-mode: both;
+            animation-name: pulse;
+            animation-iteration-count: infinite;
+
+        }
     </style>
 
     <script src="Scripts/RequestAnimFrame.js"></script>
@@ -214,5 +241,6 @@
 </head>
 <body onload="initialize();">
     <canvas id="canvas" style="position:absolute"></canvas>
+    <div id="cursors"></div>
 </body>
 </html>

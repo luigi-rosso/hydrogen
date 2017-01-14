@@ -8,7 +8,13 @@ function Pane(_Hydrogen)
 	var _Y2 = 0;
 	var _DragScrollMargin = 50;
 	var _DoubleClickDelay = 300;
-	var _HistoryCaptureDelay = 500;
+	var _HistoryCaptureDelay = 1000;
+
+	var _UseDomCursor = true;
+	var _DomCursors = [];
+	var _IsBlinkingDisabled = false;
+	var _JustInput = null;
+	var _JustInputTimeout;
 
 	var _Font;
 
@@ -95,6 +101,7 @@ function Pane(_Hydrogen)
     	};
     	_Document.fromFile(file);
     	_Cursors = [];
+    	_ClampScroll();
     	_Hydrogen.scheduleUpdate();
     }
 
@@ -496,8 +503,11 @@ function Pane(_Hydrogen)
 	    		lastEntry.undoCursors.push(cursor.serialize());
 	    	}
 		}
-		clearTimeout(_ChangeTimeout);
-		_ChangeTimeout = setTimeout(_ChangeComplete, _HistoryCaptureDelay);
+		if(!_ChangeTimeout)
+		{
+			_ChangeTimeout = setTimeout(_ChangeComplete, _HistoryCaptureDelay);
+		}
+		
 		_TriggeredScrollX = _ScrollX;
 		_TriggeredScrollY = _ScrollY;
 	}
@@ -648,6 +658,7 @@ function Pane(_Hydrogen)
 			cursor.place(lineFrom, cursor.columnFrom - columnsRemoved);
 			columnsRemoved += columnsRemovedThisIteration;
 		}
+		_MarkJustInput();
 		_Hydrogen.scheduleUpdate();
 	}
 
@@ -722,6 +733,7 @@ function Pane(_Hydrogen)
 		_ClampScroll();
 		_ValidateCursors();
 		_EnsureCursorVisible();
+		_MarkJustInput();
 		_Hydrogen.scheduleUpdate();
 	}
 
@@ -809,6 +821,7 @@ function Pane(_Hydrogen)
 		}
 		_ValidateCursors();
 		_EnsureCursorVisible(true);
+		_MarkJustInput();
 		_Hydrogen.scheduleUpdate();
 	}
 
@@ -853,6 +866,7 @@ function Pane(_Hydrogen)
 		}
 		_ValidateCursors();
 		_EnsureCursorVisible(true);
+		_MarkJustInput();
 		_Hydrogen.scheduleUpdate();
 	}
 
@@ -865,6 +879,7 @@ function Pane(_Hydrogen)
 		}
 		_ValidateCursors();
 		_EnsureCursorVisible(true);
+		_MarkJustInput();
 		_Hydrogen.scheduleUpdate();
 	}
 
@@ -884,7 +899,30 @@ function Pane(_Hydrogen)
 		}
 		_ValidateCursors();
 		_EnsureCursorVisible(true);
+		_MarkJustInput();
 		_Hydrogen.scheduleUpdate();
+	}
+
+	function _ClearJustInput()
+	{
+		clearTimeout(_JustInputTimeout);
+		_JustInputTimeout = null;
+		if(_JustInput)
+		{
+			_JustInput = false;
+			_UpdateBlinkState();
+		}
+	}
+
+	function _MarkJustInput()
+	{
+		if(!_JustInput)
+		{
+			_JustInput = true;
+			_UpdateBlinkState();
+		}
+		clearTimeout(_JustInputTimeout);
+		_JustInputTimeout = setTimeout(_ClearJustInput, 1000);
 	}
 
 	function _CursorPageUp(span)
@@ -1007,6 +1045,47 @@ function Pane(_Hydrogen)
 		return {first:first, firstX:firstX, last:last};
 	}
 
+	function _GetDomCursor(index)
+	{
+		var domCursor = null;
+		if(index < _DomCursors.length)
+		{
+			domCursor = _DomCursors[index];
+		}
+		else
+		{
+			var cursorHeight = _Font.lineHeight;
+			domCursor = document.createElement("div");
+			domCursor.style.backgroundColor = "rgb(" + Math.round(_CursorColor[0] * 255) + "," + Math.round(_CursorColor[1] * 255) + "," + Math.round(_CursorColor[2] * 255) + ")";
+			domCursor.style.height = cursorHeight + "px";
+			_DomCursors.push(domCursor);
+			var cursorsElement = document.getElementById("cursors");
+			cursorsElement.appendChild(domCursor);
+		}
+
+		return domCursor;
+	}
+
+	function _UpdateBlinkState()
+	{
+		if(!_UseDomCursor)
+		{
+			return;
+		}
+
+		var shouldDisable = _IsDragging || _JustInput;
+		if(shouldDisable != _IsBlinkingDisabled)
+		{
+			for(var i = 0; i < _Cursors.length; i++)
+			{
+				var cursor = _Cursors[i];
+				
+				var domCursor = _GetDomCursor(i);
+			}
+			domCursor.style.animation = shouldDisable ? "none" : null;
+			_IsBlinkingDisabled = shouldDisable;
+		}
+	}
 
 	function _Advance(elapsed)
 	{
@@ -1104,6 +1183,8 @@ function Pane(_Hydrogen)
 			lastCursorLine = cursor.lineFrom;
 			var startY = Math.round(_Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
 			graphics.drawRect(0, startY, _Width, lineHeight, 1.0, _HighlightColor);
+
+
 		}
 
 		// Draw cursors.
@@ -1153,9 +1234,25 @@ function Pane(_Hydrogen)
 			//}
 			var cursorY = _Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
 			var cursorX = _X + gutter + renderScrollX + _LineWidth(lines[cursor.line], 0, cursor.column);
-			if(cursorX+1 > gutter)
+			if(cursorX+1 > gutter && !_UseDomCursor)
 			{
 				graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, _CursorColor);
+			}
+
+			if(_UseDomCursor)
+			{
+				var domCursor = _GetDomCursor(i);
+
+				domCursor.style.display = cursorX+1 > gutter ? null : "none";
+				domCursor.style.transform = "translate(" + cursorX + "px, " + cursorY + "px)";
+			}
+		}
+
+		if(_UseDomCursor)
+		{
+			for(var i = _Cursors.length; i < _DomCursors.length; i++)
+			{
+				_DomCursors[i].style.display = "none";
 			}
 		}
 
