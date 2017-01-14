@@ -98,6 +98,7 @@ function Pane(_Hydrogen)
     	{
     		clearTimeout(_ChangeTimeout);
     		_CaptureJournalEntry();
+    		_Hydrogen.scheduleUpdate();
     	};
     	_Document.fromFile(file);
     	_Cursors = [];
@@ -204,9 +205,14 @@ function Pane(_Hydrogen)
 		var t = line;
 		var tl = t.length;
 		var x = _ScrollX + gutter;
+		var startX = x;
 
 		var hitColumn = -1;
 
+		if(rx < x)
+		{
+			return { line:hitLine, column:0 };
+		}
 		var numTabSpaces = _Document.numTabSpaces;
 		for(var i = 0; i < tl; i++)
 		{
@@ -215,7 +221,7 @@ function Pane(_Hydrogen)
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * numTabSpaces;
+					x = startX + Math.floor(((x-startX) / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					break;
 				default:
 					x += columnWidth;
@@ -409,8 +415,9 @@ function Pane(_Hydrogen)
 		{
 			var cursorA = _Cursors[i];
 			var cursorB = _Cursors[i+1];
+			console.log("HERE", cursorA.serialize(), cursorB.serialize());
 
-			if(cursorB.lineFrom < cursorA.lineTo || (cursorB.lineFrom == cursorA.lineTo && cursorB.columnFrom < cursorA.columnTo))
+			if(cursorB.lineFrom < cursorA.lineTo || (cursorB.lineFrom == cursorA.lineTo && cursorB.columnFrom <= cursorA.columnTo))
 			{
 				cursorA.span(cursorA.lineFrom, cursorA.columnFrom, cursorB.lineTo, cursorB.columnTo);
 				_Cursors.splice(i+1, 1);
@@ -615,6 +622,93 @@ function Pane(_Hydrogen)
 
 	function _DeleteSelection()
 	{
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var c = _Cursors[i];
+			console.log(i, c.serialize());
+		}
+		var lines = _Document.lines;
+		for(var i = _Cursors.length-1; i >= 0; i--)
+		{
+			var cursor = _Cursors[i];
+
+			var lineFrom = cursor.lineFrom;
+			var lineTo = cursor.lineTo;
+
+			var columnChange = 0;
+			if(lineFrom == lineTo)
+			{
+				// ---XXX----
+				var line = lines[lineFrom];
+				var start = line.slice(0, cursor.columnFrom);
+				lines[lineFrom] = start + line.slice(cursor.columnTo);
+				columnChange = start.length - cursor.columnTo;
+			//	cursor.place(lineFrom, start.length);
+			}
+			else
+			{
+				// ---XXXXXX
+				// XXXXXXXXX
+				// XXXXX----
+				console.log(lines[lineFrom].slice(0, cursor.columnFrom) + lines[lineTo].slice(cursor.columnTo));
+				var start = lines[lineFrom].slice(0, cursor.columnFrom);
+				lines[lineFrom] = start + lines[lineTo].slice(cursor.columnTo);
+				columnChange = start.length - cursor.columnTo;
+
+
+				var rem = lineTo-lineFrom;
+				lines.splice(lineFrom+1, rem);
+
+	//			cursor.place(lineFrom, start.length);
+			}
+/*
+			for(var j = i+1; j < _Cursors.length; j++)
+			{
+				var nextCursor = _Cursors[j];
+				if(nextCursor.lineFrom == lineFrom)
+			}*/
+
+			//cursor.place(lineFrom, cursor.columnFrom);
+		}
+
+		// Now fix up the cursors.
+		var linesRemoved = 0;
+		var lastLine = -1;
+		var columnsRemoved = 0;
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+
+			var lineFrom = cursor.lineFrom;
+			var lineTo = cursor.lineTo;
+			if(lineFrom !== lastLine)
+			{
+				columnsRemoved = 0;
+			}
+			lastLine = lineTo;
+			
+
+			var columnsRemovedThisIteration = 0;
+
+			if(lineFrom == lineTo)
+			{
+				columnsRemovedThisIteration = cursor.columnTo - cursor.columnFrom;
+				console.log("PLACE CA", i, lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved);
+				cursor.place(lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved);
+				columnsRemoved += columnsRemovedThisIteration;
+			}
+			else
+			{
+				var oldTo = cursor.columnTo;
+				console.log("PLACE CB", lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved, columnsRemoved, oldTo);
+				var columnsGained = cursor.columnFrom - columnsRemoved;
+				cursor.place(lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved);
+				var rem = lineTo-lineFrom;
+				linesRemoved += rem;
+				columnsRemoved = -columnsGained+oldTo;
+			}
+		}
+		/*
 		var linesRemoved = 0;
 		var lastLine = -1;
 		var columnsRemoved = 0;
@@ -647,17 +741,38 @@ function Pane(_Hydrogen)
 				// ---XXXXXX
 				// XXXXXXXXX
 				// XXXXX----
-				lines[lineFrom] = lines[lineFrom].slice(0, cursor.columnFrom - columnsRemoved) + lines[lineTo].slice(cursor.columnTo);
-				columnsRemovedThisIteration = cursor.columnTo;
+				var start = lines[lineFrom].slice(0, cursor.columnFrom - columnsRemoved);
+				lines[lineFrom] = start + lines[lineTo].slice(cursor.columnTo);
+				columnsRemovedThisIteration = -columnsRemoved;//cursor.columnTo;
 
 				var rem = lineTo-lineFrom;
 				linesRemoved += rem;
 				lines.splice(lineFrom+1, rem);
+				console.log("LINES REMOVED", rem);
+
+				// Find any cursor that was on line lineTo
+				for(var j = i+1; j < _Cursors.length; j++)
+				{
+					var cursorCheck = _Cursors[j];
+					if(cursorCheck.lineFrom === lineTo)
+					{
+						if(cursorCheck.lineTo === lineTo)
+						{
+							console.log("YE");
+							cursorCheck.span(cursorCheck.lineFrom, cursorCheck.columnFrom - cursor.columnTo + start.length, cursorCheck.lineTo, cursorCheck.columnTo - cursor.columnTo + start.length, cursorCheck.atEnd);	
+						}
+						else
+						{
+							cursorCheck.span(cursorCheck.lineFrom, cursorCheck.columnFrom - cursor.columnTo + start.length, cursorCheck.lineTo, cursorCheck.columnTo, cursorCheck.atEnd);
+						}
+					}
+				}
 			}
 
 			cursor.place(lineFrom, cursor.columnFrom - columnsRemoved);
 			columnsRemoved += columnsRemovedThisIteration;
-		}
+		}*/
+		_ValidateCursors();
 		_MarkJustInput();
 		_Hydrogen.scheduleUpdate();
 	}
@@ -763,17 +878,163 @@ function Pane(_Hydrogen)
 		//console.log("REDO", _Journal.length, _JournalIndex);
 	}
 
+	function _Tab(back)
+	{
+		_TriggerChange();
+		_ValidateCursors();
+
+		//_DeleteSelection();
+
+		var lastLine = -1;
+		var columnsAdded = 0;
+		var insertText = "\t";
+		var lines = _Document.lines;
+
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+
+			if(cursor.hasRange)
+			{
+				var backedFirst = false;
+				var backedLast = false;
+				for(var j = cursor.lineFrom; j <= cursor.lineTo; j++)
+				{
+					if(j !== lastLine)
+					{
+						if(back)
+						{
+							var line = lines[j];
+							if(line.length > 0)
+							{
+								var c = line.charCodeAt(0);
+								switch(c)
+								{
+									case 32:
+									case 9:
+										lines[j] = lines[j].slice(1);
+										if(j === cursor.lineFrom)
+										{
+											backedFirst = true;
+										}
+										if(j === cursor.lineTo)
+										{
+											backedLast = true;
+										}
+										break;
+								}
+							}
+						}
+						else
+						{
+							lines[j] = insertText + lines[j];
+						}
+						
+						lastLine = j;
+					}
+				}
+				if(back)
+				{
+					cursor.span(cursor.lineFrom, cursor.columnFrom+(backedFirst ? -1 : 0), cursor.lineTo, cursor.columnTo+(backedLast ? -1 : 0));
+				}
+				else
+				{
+					cursor.span(cursor.lineFrom, cursor.columnFrom+1, cursor.lineTo, cursor.columnTo+1);
+				}
+			}
+			else if(!back)
+			{
+				var lineFrom = cursor.lineFrom;
+				var lineTo = cursor.lineTo;
+
+				var line = lines[lineFrom];
+				if(lineFrom !== lastLine)
+				{
+					columnsAdded = 0;
+				}
+				lastLine = cursor.lineTo;
+
+				lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnFrom + columnsAdded);
+				columnsAdded += insertText.length;
+				cursor.place(lineFrom, cursor.columnFrom + columnsAdded);
+			}
+		}
+
+		_EnsureCursorVisible();
+		_Hydrogen.scheduleUpdate();
+	}
+
+	function _Delete()
+	{
+		_TriggerChange();
+		var lines = _Document.lines;
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			if(!cursor.hasRange)
+			{
+				var line = lines[cursor.lineFrom];
+				if(cursor.columnFrom < line.length)
+				{
+					cursor.span(cursor.lineFrom, cursor.columnFrom, cursor.lineFrom, cursor.columnFrom+1);
+				}
+				else if(cursor.lineFrom < lines.length-1)
+				{
+					cursor.span(cursor.lineFrom, cursor.columnFrom, cursor.lineFrom+1, 0);	
+				}
+			}
+		}
+		_DeleteSelection();
+		/*
+		var nonRangeCursors = [];
+		for(var i = 0; i < _Cursors.length; i++)
+		{
+			var cursor = _Cursors[i];
+			if(!cursor.hasRange)
+			{
+				nonRangeCursors.push(cursor);
+			}
+		}
+		_DeleteSelection();
+		var lines = _Document.lines;
+		var removedLines = 0;
+		for(var i = 0; i < nonRangeCursors.length; i++)
+		{
+			var cursor = nonRangeCursors[i];
+			var lineFrom = cursor.lineFrom - removedLines;
+			var line = lines[lineFrom];
+			var column = cursor.columnFrom;
+
+			if(column === line.length)
+			{
+				if(lineFrom < lines.length)
+				{
+					var nextLine = lines[lineFrom+1];
+					var nextLineLength = nextLine.length;
+					lines[lineFrom] += nextLine;
+					lines.splice(lineFrom+1, 1);
+					removedLines++;
+					cursor.place(lineFrom, column);
+				}
+			}
+			else
+			{
+				lines[lineFrom] = line.slice(0, cursor.columnFrom) + line.slice(cursor.columnFrom+1);
+				cursor.place(lineFrom, column);
+			}
+		}*/
+
+		_EnsureCursorVisible();
+	}
+
 	function _OnKeyPress(evt)
 	{
-		//console.log("KEY PRESS", evt.keyCode, evt);
+		console.log("KEY PRESS", evt.keyCode, evt);
 		
 		switch(evt.keyCode)
 		{
 			case 13: // Enter
 				_Enter();
-				return true;
-			case 46: // Delete
-				_ReplaceSelectionWith("");
 				return true;
 		}
 
@@ -974,7 +1235,8 @@ function Pane(_Hydrogen)
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * numTabSpaces;
+					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+//					x += columnWidth * numTabSpaces;
 					break;
 				default:
 					x += columnWidth;
@@ -1004,7 +1266,8 @@ function Pane(_Hydrogen)
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * numTabSpaces;
+					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					//x += columnWidth * numTabSpaces;
 					break;
 				default:
 					x += columnWidth;
@@ -1029,7 +1292,8 @@ function Pane(_Hydrogen)
 			switch(c)
 			{
 				case 9:
-					x += columnWidth * numTabSpaces;
+					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					//x += columnWidth * numTabSpaces;
 					break;
 				default:
 					x += columnWidth;
@@ -1310,6 +1574,8 @@ function Pane(_Hydrogen)
 	this.draw = _Draw;
 	this.undo = _Undo;
 	this.redo = _Redo;
+	this.doDelete = _Delete;
+	this.doTab = _Tab;
 	this.backspace = _Backspace;
 	this.cursorUp = _CursorUp;
 	this.cursorDown = _CursorDown;

@@ -180,9 +180,17 @@ function Hydrogen(_Canvas)
 		{
 			evt.preventDefault();
 		}
-		//console.log("KEY DOWN", evt.keyCode, evt.altKey);
+		console.log("KEY DOWN", evt.keyCode, evt.altKey);
 		switch(evt.keyCode)
 		{
+			case 9:
+				_FocusUI.doTab(evt.shiftKey);
+				evt.preventDefault();
+				break;
+			case 46:
+				_FocusUI.doDelete();
+				evt.preventDefault();
+				break;
 			case 38:
 				if(_IsOSX && evt.metaKey)
 				{

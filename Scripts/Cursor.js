@@ -33,6 +33,11 @@ function Cursor(data)
         return _AtEnd ? _LineTo : _LineFrom;
     });
 
+    this.__defineGetter__("atEnd", function()
+    {
+        return _AtEnd;
+    });
+
 
     function _SetPlacedColumn(doc)
     {

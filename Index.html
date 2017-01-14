@@ -8,10 +8,6 @@
         {
             margin:0;
         }
-        #cursors
-        {
-            position:absolute;
-        }
         @keyframes pulse 
         {
             0% { opacity: 1; }
@@ -19,6 +15,16 @@
             50% { opacity: 0; }
             80% { opacity: 1; }
             100% { opacity: 1; }
+        }
+        #cursors
+        {
+            position:absolute;
+            animation-name: pulse;
+
+            animation-duration: 1.2s;
+            animation-fill-mode: both;
+            animation-iteration-count: infinite;
+            pointer-events: none;
         }
 
         #cursors div
@@ -28,11 +34,6 @@
             background-color:#00ff00;
             position:absolute;
             opacity:translate(0px, 0px);
-
-            animation-duration: 1.2s;
-            animation-fill-mode: both;
-            animation-name: pulse;
-            animation-iteration-count: infinite;
 
         }
     </style>
