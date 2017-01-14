@@ -2,7 +2,7 @@
 Lightweight code editor built entirely in JavaScript with WebGL rendering. Try it out at http://luigi-rosso.github.io/hydrogen/. Just drag and drop a text file in.
 
 ## WHY?!
-Performance. This is not a feature rich text editor. It doesn't do line wrapping, code folding, or even have much coloring (yet). But it lets you edit enormous text files quickly. 
+Performance (at least compared to other browser based editors). This is not a feature rich text editor. It doesn't do line wrapping, code folding, or even have much coloring (yet). But it lets you edit enormous text files quickly in a web browser.
 
 ## Features
 * JavaScript glyph layout + WebGL glyph rendering via a custom font texture map file (more on this soon).
