@@ -601,6 +601,10 @@ function Pane(_Hydrogen)
 					}
 				}
 				var prepend = "";
+				if(firstNonWhiteIndex === -1)
+				{
+					firstNonWhiteIndex = remainingLine.length;
+				}
 				if(firstNonWhiteIndex !== -1)
 				{
 					prepend = remainingLine.slice(0, firstNonWhiteIndex);
@@ -942,7 +946,7 @@ function Pane(_Hydrogen)
 					cursor.span(cursor.lineFrom, cursor.columnFrom+1, cursor.lineTo, cursor.columnTo+1);
 				}
 			}
-			else if(!back)
+			else
 			{
 				var lineFrom = cursor.lineFrom;
 				var lineTo = cursor.lineTo;
@@ -954,9 +958,44 @@ function Pane(_Hydrogen)
 				}
 				lastLine = cursor.lineTo;
 
-				lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnFrom + columnsAdded);
-				columnsAdded += insertText.length;
-				cursor.place(lineFrom, cursor.columnFrom + columnsAdded);
+				if(back)
+				{
+					if(line.length > 0)
+					{
+						if(cursor.columnFrom !== 0)
+						{
+							var c = line.charCodeAt(cursor.columnFrom-1);
+							switch(c)
+							{
+								case 32:
+								case 9:
+									lines[lineFrom] = line.slice(0, cursor.columnFrom - 1 + columnsAdded) + line.slice(cursor.columnFrom + columnsAdded);
+									columnsAdded--;
+									cursor.place(lineFrom, cursor.columnFrom + columnsAdded);
+									break;
+							}
+						}
+						else
+						{
+							var c = line.charCodeAt(cursor.columnFrom);
+							switch(c)
+							{
+								case 32:
+								case 9:
+									lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + line.slice(cursor.columnFrom + 1 + columnsAdded);
+									columnsAdded--;
+									cursor.place(lineFrom, Math.max(0, cursor.columnFrom + columnsAdded));
+									break;
+							}
+						}
+					}
+				}
+				else
+				{
+					lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnFrom + columnsAdded);
+					columnsAdded += insertText.length;
+					cursor.place(lineFrom, cursor.columnFrom + columnsAdded);
+				}
 			}
 		}
 
