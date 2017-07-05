@@ -466,12 +466,16 @@ var Graphics = function (canvas)
 
         for(var i = offset; i <= lastChar; i++)
         {
-            var c = t.charCodeAt(i);
+            var c = t[i]; // Returns the UTF-16 code for the character
+            /* TODO: 
+                - getter 
+                - bit shift/mask for the actual character in its UTF representation
+            */
             var isTab = false;
             switch(c)
             {
                 case 32:        // SPACE
-                case 13: 
+                case 13:        // RETURN
                     c = 32;
                     break;
 
@@ -498,6 +502,7 @@ var Graphics = function (canvas)
             }*/
             if(g.bufferIndex !== -1)
             {
+                // TODO lastColor
                 if(g.ti != _CurrentFontTexture)
                 {
                     _CurrentFontTexture = g.ti;

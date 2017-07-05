@@ -24,15 +24,28 @@ function Document(_Hydrogen)
 		var start = Date.now();
 		_Lines = [];
 		_MaxLineLength = 0;
+        let stringLines = text.split(_LineBreak);
 
-		_Lines = text.split(_LineBreak);
-		for(var i = 0; i < _Lines.length; i++)
+        // We build an array of Uint32 elements. Each element represents a single line of text in our file. Each character code associated with the UTF16 representation of the character.
+		_Lines = new Array(stringLines.length);
+		for(var i = 0; i < stringLines.length; i++)
 		{
-			var line = _Lines[i];
-			if(line.length > _MaxLineLength)
+			var stringLine = stringLines[i];
+			if(stringLine.length > _MaxLineLength)
 			{
-				_MaxLineLength = line.length;
-			}
+				_MaxLineLength = stringLine.length;
+			}    
+
+            let line = new Uint32Array(stringLine.length);
+
+            for(let j = 0; j < stringLine.length; j++)
+            {
+                line[j] = stringLine.codePointAt(j);
+            }
+
+            _Lines[i] = line;
+
+            console.log("STRING:", line);
 		}
 
 		var end = Date.now();

@@ -216,7 +216,7 @@ function Pane(_Hydrogen)
 		var numTabSpaces = _Document.numTabSpaces;
 		for(var i = 0; i < tl; i++)
 		{
-			var c = t.charCodeAt(i);
+			var c = t[i];
 			var lx = x;
 			switch(c)
 			{
@@ -588,7 +588,7 @@ function Pane(_Hydrogen)
 				var firstNonWhiteCode = -1;
 				for(var j = 0; j < remainingLine.length && firstNonWhiteIndex === -1; j++)
 				{
-					var c = remainingLine.charCodeAt(j);
+					var c = remainingLine[j];
 					switch(c)
 					{
 						case 9: // Tab
@@ -818,6 +818,7 @@ function Pane(_Hydrogen)
 					{
 						insertText = transformer(text, cursor.clone(linesAdded, columnsAdded));
 					}
+					// Inserting text into the new line
 					lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnTo + columnsAdded);
 					columnsAdded += insertText.length;
 					cursor.place(lineFrom, cursor.columnFrom + columnsAdded);	
@@ -911,7 +912,7 @@ function Pane(_Hydrogen)
 							var line = lines[j];
 							if(line.length > 0)
 							{
-								var c = line.charCodeAt(0);
+								var c = line[0];
 								switch(c)
 								{
 									case 32:
@@ -964,7 +965,7 @@ function Pane(_Hydrogen)
 					{
 						if(cursor.columnFrom !== 0)
 						{
-							var c = line.charCodeAt(cursor.columnFrom-1);
+							var c = line[cursor.columnFrom-1];
 							switch(c)
 							{
 								case 32:
@@ -977,7 +978,7 @@ function Pane(_Hydrogen)
 						}
 						else
 						{
-							var c = line.charCodeAt(cursor.columnFrom);
+							var c = line[cursor.columnFrom];
 							switch(c)
 							{
 								case 32:
@@ -1270,7 +1271,7 @@ function Pane(_Hydrogen)
 		var numTabSpaces = _Document.numTabSpaces;
 		for(var i = start; i < end; i++)
 		{
-			var c = t.charCodeAt(i);
+			var c = t[i];
 			switch(c)
 			{
 				case 9:
@@ -1300,7 +1301,7 @@ function Pane(_Hydrogen)
 
 		for(var i = 0; i < tl; i++)
 		{
-			var c = t.charCodeAt(i);
+			var c = t[i];
 			var lx = x;
 			switch(c)
 			{
@@ -1327,7 +1328,7 @@ function Pane(_Hydrogen)
 		}
 		for(var i = first; i < tl; i++)
 		{
-			var c = t.charCodeAt(i);
+			var c = t[i];
 			switch(c)
 			{
 				case 9:
@@ -1586,7 +1587,13 @@ function Pane(_Hydrogen)
 				var y = _Y + firstLineOrigin;
 				for(var i = firstLine; i <= lastLine; i++)
 				{
-					var label = (i+1).toString();
+					let lineNumberLabel = (i+1).toString();
+					let label = new Uint32Array(lineNumberLabel.length);
+					for(let ln = 0; ln < label.length; ln++)
+					{
+						label[ln] = lineNumberLabel.codePointAt(ln);
+					}
+
 					graphics.drawText(x - (label.length*_Font.horizontalAdvance), y+baseLine, label);
 
 					y += lineHeight;
