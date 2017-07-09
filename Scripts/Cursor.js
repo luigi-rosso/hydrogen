@@ -101,7 +101,8 @@ function Cursor(data)
     function _SpanWord(doc)
     {
         var line = doc.lines[_LineFrom];
-        var c = line.charCodeAt(_ColumnTo);
+        // var c = line.charCodeAt(_ColumnTo);
+        let c = line[_ColumnTo];
         if(_IsSpace(c))
         {
             _ColumnFrom = _FindFirstNonSpace(_ColumnTo, -1, line)+1;
@@ -204,7 +205,8 @@ function Cursor(data)
         var monoSpaces = 0;
         for(var i = 0; i < x; i++)
         {
-            var c = line.charCodeAt(i);
+            // var c = line.charCodeAt(i);
+            let c = line[i];
             switch(c)
             {
                 case 9:
@@ -223,7 +225,8 @@ function Cursor(data)
         var ll = line.length;
         for(var i = 0; i < ll; i++)
         {
-            var c = line.charCodeAt(i);
+            // var c = line.charCodeAt(i);
+            let c = line[i];
             switch(c)
             {
                 case 9:
@@ -243,7 +246,8 @@ function Cursor(data)
         var ll = line.length;
         for(var i = 0; i < ll; i++)
         {
-            var c = line.charCodeAt(i);
+            // var c = line.charCodeAt(i);
+            let c = line[i];
             switch(c)
             {
                 case 9:
@@ -332,7 +336,8 @@ function Cursor(data)
         var end = inc > 0 ? line.length : -1;
         for(var i = col; i != end; i+=inc)
         {
-            var c = line.charCodeAt(i);
+            // var c = line.charCodeAt(i);
+            let c = line[i];
             if(_IsSymbol(c))
             {
                 continue;
@@ -347,7 +352,9 @@ function Cursor(data)
         var end = inc > 0 ? line.length : -1;
         for(var i = col; i != end; i+=inc)
         {
-            var c = line.charCodeAt(i);
+            // var c = line.charCodeAt(i);
+            let c = line[i];
+            
             if(_IsSymbol(c))
             {
                 return i;
@@ -367,7 +374,8 @@ function Cursor(data)
         var end = inc > 0 ? line.length : -1;
         for(var i = col; i != end; i+=inc)
         {
-            var c = line.charCodeAt(i);
+            // var c = line.charCodeAt(i);
+            let c = line[i];
             switch(c)
             {
                 case 9:
@@ -400,7 +408,9 @@ function Cursor(data)
         {
             col--;
         }
-        var c = line.charCodeAt(col);
+        
+        // var c = line.charCodeAt(i);
+        let c = line[i];
 
         if(_IsSpace(c))
         {

@@ -91,6 +91,29 @@ function Pane(_Hydrogen)
         return _Height;
     });
 
+    function spliceTypedArray(arr, startIdx, count, newElements)
+    {
+    	if(arguments.length === 1)
+    	{
+    		console.log("Not enough arguments to call function:", arguments.callee.toString());
+    	}
+
+    	// startIdx = startIdx > 0 ? startIdx : arr.length + startIdx;
+    	startIdx = Math.max(startIdx, 0);
+    	count = Math.max(count, 0);
+
+    	newElements = newElements || [];
+
+    	let newSize = arr.length - count + newElements.length;
+    	let splicedArray = new arr.constructor(newSize); // Works with various TypedArrays
+
+    	splicedArray.set(arr.subarray(0, startIdx));
+    	splicedArray.set(newElements, startIdx);
+    	splicedArray.set(arr.subarray(startIdx + count), startIdx + newElements.length);
+
+    	return splicedArray;
+    }
+
     function _OpenFile(file)
     {
     	_Document = new Document(_Hydrogen);
@@ -548,6 +571,7 @@ function Pane(_Hydrogen)
 				{
 					var previousLine = lines[lineFrom-1];
 					var previousLineLength = previousLine.length;
+					// TODO
 					lines[lineFrom-1] = previousLine + lines[lineFrom];
 					lines.splice(lineFrom, 1);
 					removedLines++;
@@ -615,6 +639,7 @@ function Pane(_Hydrogen)
 				}
 
 				lines[lineFrom] = remainingLine;
+				// TODO
 				lines.splice(lineFrom+1, 0, prepend+line.slice(cursor.columnFrom));
 				linesAdded++;
 				cursor.place(lineFrom+1, prepend.length);
@@ -661,6 +686,7 @@ function Pane(_Hydrogen)
 
 
 				var rem = lineTo-lineFrom;
+				// TODO
 				lines.splice(lineFrom+1, rem);
 
 	//			cursor.place(lineFrom, start.length);
@@ -825,6 +851,7 @@ function Pane(_Hydrogen)
 				}
 				else
 				{
+					// TODO
 					lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertLines[0];// + line.slice(cursor.columnTo + columnsAdded);
 					for(var j = 1; j < insertLines.length-1; j++)
 					{
