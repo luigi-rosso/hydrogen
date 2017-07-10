@@ -91,29 +91,6 @@ function Pane(_Hydrogen)
         return _Height;
     });
 
-    function spliceTypedArray(arr, startIdx, count, newElements)
-    {
-    	if(arguments.length === 1)
-    	{
-    		console.log("Not enough arguments to call function:", arguments.callee.toString());
-    	}
-
-    	// startIdx = startIdx > 0 ? startIdx : arr.length + startIdx;
-    	startIdx = Math.max(startIdx, 0);
-    	count = Math.max(count, 0);
-
-    	newElements = newElements || [];
-
-    	let newSize = arr.length - count + newElements.length;
-    	let splicedArray = new arr.constructor(newSize); // Works with various TypedArrays
-
-    	splicedArray.set(arr.subarray(0, startIdx));
-    	splicedArray.set(newElements, startIdx);
-    	splicedArray.set(arr.subarray(startIdx + count), startIdx + newElements.length);
-
-    	return splicedArray;
-    }
-
     function _OpenFile(file)
     {
     	_Document = new Document(_Hydrogen);
@@ -134,6 +111,8 @@ function Pane(_Hydrogen)
 
     function _CaptureJournalEntry()
     {
+    	let txt = _Document.text;
+
     	var entry = {
     		text:_Document.text,
     		redoCursors:[],
@@ -580,7 +559,7 @@ function Pane(_Hydrogen)
 			}
 			else
 			{
-
+				// TODO
 				lines[lineFrom] = line.slice(0, cursor.columnFrom - 1) + line.slice(cursor.columnFrom);
 				cursor.place(lineFrom, column-1);
 			}
@@ -638,8 +617,8 @@ function Pane(_Hydrogen)
 					}
 				}
 
-				lines[lineFrom] = remainingLine;
 				// TODO
+				lines[lineFrom] = remainingLine;
 				lines.splice(lineFrom+1, 0, prepend+line.slice(cursor.columnFrom));
 				linesAdded++;
 				cursor.place(lineFrom+1, prepend.length);
@@ -667,10 +646,15 @@ function Pane(_Hydrogen)
 			var columnChange = 0;
 			if(lineFrom == lineTo)
 			{
-				// ---XXX----
-				var line = lines[lineFrom];
-				var start = line.slice(0, cursor.columnFrom);
-				lines[lineFrom] = start + line.slice(cursor.columnTo);
+				// ---XXXX----
+				let line = lines[lineFrom];
+				let start = line.slice(0, cursor.columnFrom);
+				let end = line.slice(cursor.columnTo);
+
+				lines[lineFrom] = new Uint32Array(start.length + end.length);
+				lines[lineFrom].set(start);
+				lines[lineFrom].set(end, start.length);
+
 				columnChange = start.length - cursor.columnTo;
 			//	cursor.place(lineFrom, start.length);
 			}
@@ -679,14 +663,20 @@ function Pane(_Hydrogen)
 				// ---XXXXXX
 				// XXXXXXXXX
 				// XXXXX----
-				console.log(lines[lineFrom].slice(0, cursor.columnFrom) + lines[lineTo].slice(cursor.columnTo));
-				var start = lines[lineFrom].slice(0, cursor.columnFrom);
-				lines[lineFrom] = start + lines[lineTo].slice(cursor.columnTo);
+				let line = lines[lineFrom];
+				let start = line.slice(0, cursor.columnFrom);
+				let end =  line.slice(cursor.columnTo);
+
+				// TODO no '+' for TypedArrays
+				// lines[lineFrom] = start + lines[lineTo].slice(cursor.columnTo);
+				lines[lineFrom] = new Uint32Array(start.length + end.length);
+				lines[lineFrom].set(start);
+				lines[lineFrom].set(end, start.length);
+
 				columnChange = start.length - cursor.columnTo;
 
 
 				var rem = lineTo-lineFrom;
-				// TODO
 				lines.splice(lineFrom+1, rem);
 
 	//			cursor.place(lineFrom, start.length);
@@ -839,13 +829,24 @@ function Pane(_Hydrogen)
 
 				if(insertLines.length === 1)
 				{
-					var insertText = text;
+
+					let insertText = new Uint32Array(text.length);
+					for(let ti = 0; ti < text.length; ti++) insertText[ti] = text.codePointAt(ti);						
+
 					if(transformer)
 					{
 						insertText = transformer(text, cursor.clone(linesAdded, columnsAdded));
 					}
 					// Inserting text into the new line
-					lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnTo + columnsAdded);
+					let firstPart = line.slice(0, cursor.columnFrom + columnsAdded);
+					let secondPart = line.slice(cursor.columnTo + columnsAdded);
+					// let finalLine = firstPart + insertText + secondPart;
+					let finalLine = new Uint32Array(firstPart.length + insertText.length + secondPart.length);
+					finalLine.set(firstPart);
+					finalLine.set(insertText, firstPart.length);
+					finalLine.set(secondPart, firstPart.length + insertText.length);
+					lines[lineFrom] = finalLine;
+
 					columnsAdded += insertText.length;
 					cursor.place(lineFrom, cursor.columnFrom + columnsAdded);	
 				}
@@ -997,7 +998,13 @@ function Pane(_Hydrogen)
 							{
 								case 32:
 								case 9:
-									lines[lineFrom] = line.slice(0, cursor.columnFrom - 1 + columnsAdded) + line.slice(cursor.columnFrom + columnsAdded);
+									// TODO
+									let start 	= line.slice(0, cursor.columnFrom - 1 + columnsAdded);
+									let end 	= line.slice(cursor.columnFrom + columnsAdded);
+									lines[lineFrom] = new Uint32Array(start.length + end.length);
+									lines[lineFrom].set(start);
+									lines[lineFrom].set(end, start.length);
+									// lines[lineFrom] = line.slice(0, cursor.columnFrom - 1 + columnsAdded) + line.slice(cursor.columnFrom + columnsAdded);
 									columnsAdded--;
 									cursor.place(lineFrom, cursor.columnFrom + columnsAdded);
 									break;
@@ -1010,6 +1017,7 @@ function Pane(_Hydrogen)
 							{
 								case 32:
 								case 9:
+									// TODO
 									lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + line.slice(cursor.columnFrom + 1 + columnsAdded);
 									columnsAdded--;
 									cursor.place(lineFrom, Math.max(0, cursor.columnFrom + columnsAdded));
@@ -1020,6 +1028,7 @@ function Pane(_Hydrogen)
 				}
 				else
 				{
+					// TODO
 					lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnFrom + columnsAdded);
 					columnsAdded += insertText.length;
 					cursor.place(lineFrom, cursor.columnFrom + columnsAdded);

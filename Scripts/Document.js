@@ -79,7 +79,25 @@ function Document(_Hydrogen)
 
     this.__defineGetter__("text", function()
     {
-        return _Lines.join(_LineBreak);
+        let result = "";
+        
+        for(let i = 0; i < _Lines.length; i++)
+        {
+            let line = _Lines[i];
+            
+            // let resultLine = String.fromCodePoint.apply(this, line.subarray(0));
+
+            for(let j = 0; j < line.length; j++)
+            {
+                // console.log("CODE POINT:", line[j]);
+                let char = String.fromCodePoint(line[j]);
+                result += char;
+            }
+
+            result += _LineBreak;
+        }
+
+        return result;
     });
 
     this.__defineGetter__("tab", function()
