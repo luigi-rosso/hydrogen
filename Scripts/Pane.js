@@ -142,6 +142,17 @@ function Pane(_Hydrogen)
 		}
 	}
 
+	function _ConvertToText(intArray)
+	{
+		let result = "";
+		for(let ti = 0; ti < intArray.length; ti++)
+		{
+			result += String.fromCodePoint(intArray[ti]);
+		}
+
+		return result;
+	}
+
 	function _OnCopy()
 	{
 		var data = [];
@@ -153,22 +164,28 @@ function Pane(_Hydrogen)
     		{
     			if(cursor.lineFrom === cursor.lineTo)
     			{
-    				var line = lines[cursor.lineFrom];
-    				data.push(line.slice(cursor.columnFrom, cursor.columnTo));
+    				let line = lines[cursor.lineFrom];
+    				let sel = _ConvertToText(line.slice(cursor.columnFrom, cursor.columnTo));
+    				data.push(sel);
     			}
     			else
     			{
-					data.push(lines[cursor.lineFrom].slice(cursor.columnFrom));
+    				let sel = _ConvertToText(lines[cursor.lineFrom].slice(cursor.columnFrom));
+					data.push(sel);
 					for(var j = cursor.lineFrom+1; j < cursor.lineTo; j++)
 					{
-						data.push(lines[j]);
+						sel = _ConvertToText(lines[j]);
+						data.push(sel);
 					}
-					data.push(lines[cursor.lineTo].slice(0, cursor.columnTo));
+
+					sel = _ConvertToText(lines[cursor.lineTo].slice(0, cursor.columnTo));
+					data.push(sel);
     			}
     		}
     	}
 
-    	return data.length ? data.join(_Document.lineBreak) : null;
+    	let finalData = data.length ? data.join(_Document.lineBreak) : null;
+    	return finalData;
 	}
 
 	function _OnCut()
