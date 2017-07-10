@@ -823,7 +823,25 @@ function Pane(_Hydrogen)
 			var lastLine = -1;
 			var columnsAdded = 0;
 			var linesAdded = 0;
-			var insertLines = text.split(_Document.lineBreak);
+
+			// Convert current text to UTF8 code point representation.
+			let insertTextLines = text.split(_Document.lineBreak);
+			let insertLines = [];
+			
+			for(let tl = 0; tl < insertTextLines.length; tl++)
+			{
+				let cur = insertTextLines[tl];
+				let insertText = new Uint32Array(cur.length);
+				for(let ti = 0; ti < cur.length; ti++)
+				{
+					insertText[ti] = cur.codePointAt(ti);
+				}
+
+				insertLines.push(insertText);
+			}
+
+			// var insertLines = text.split(_Document.lineBreak);
+
 			for(var i = 0; i < _Cursors.length; i++)
 			{
 				var cursor = _Cursors[i];
@@ -843,11 +861,13 @@ function Pane(_Hydrogen)
 				if(insertLines.length === 1)
 				{
 
-					let insertText = new Uint32Array(text.length);
-					for(let ti = 0; ti < text.length; ti++) insertText[ti] = text.codePointAt(ti);						
+					let insertText = insertLines[0];
+					// let insertText = new Uint32Array(text.length);
+					// for(let ti = 0; ti < text.length; ti++) insertText[ti] = text.codePointAt(ti);						
 
 					if(transformer)
 					{
+						// TODO
 						insertText = transformer(text, cursor.clone(linesAdded, columnsAdded));
 					}
 					// Inserting text into the new line
@@ -868,7 +888,7 @@ function Pane(_Hydrogen)
 					let start = line.slice(0, cursor.columnFrom + columnsAdded);
 					lines[lineFrom] = new Uint32Array(start.length + insertLines[0].length);
 					lines[lineFrom].set(start);
-					lines[lineFrom].set(insertLines, start.length);
+					lines[lineFrom].set(insertLines[0], start.length);
 
 					// lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertLines[0];// + line.slice(cursor.columnTo + columnsAdded);
 					for(var j = 1; j < insertLines.length-1; j++)
