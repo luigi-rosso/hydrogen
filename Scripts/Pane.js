@@ -550,8 +550,12 @@ function Pane(_Hydrogen)
 				{
 					var previousLine = lines[lineFrom-1];
 					var previousLineLength = previousLine.length;
-					// TODO
-					lines[lineFrom-1] = previousLine + lines[lineFrom];
+
+					lines[lineFrom-1] = new Uint32Array(previousLine.length + lines[lineFrom].length);
+					lines[lineFrom-1].set(previousLine);
+					lines[lineFrom-1].set(lines[lineFrom], previousLine.length);
+
+					// lines[lineFrom-1] = previousLine + lines[lineFrom];
 					lines.splice(lineFrom, 1);
 					removedLines++;
 					cursor.place(lineFrom-1, previousLineLength);
@@ -559,8 +563,13 @@ function Pane(_Hydrogen)
 			}
 			else
 			{
-				// TODO
-				lines[lineFrom] = line.slice(0, cursor.columnFrom - 1) + line.slice(cursor.columnFrom);
+				let start = line.slice(0, cursor.columnFrom - 1);
+				let end = line.slice(cursor.columnFrom);
+				lines[lineFrom] = new Uint32Array(start.length + end.length);
+				lines[lineFrom].set(start);
+				lines[lineFrom].set(end, start.length);
+
+				// lines[lineFrom] = line.slice(0, cursor.columnFrom - 1) + line.slice(cursor.columnFrom);
 				cursor.place(lineFrom, column-1);
 			}
 		}
@@ -617,9 +626,14 @@ function Pane(_Hydrogen)
 					}
 				}
 
-				// TODO
 				lines[lineFrom] = remainingLine;
-				lines.splice(lineFrom+1, 0, prepend+line.slice(cursor.columnFrom));
+
+				let append = line.slice(cursor.columnFrom);
+				let enterLine = new Uint32Array(prepend.length + append.length);
+				enterLine.set(prepend);
+				enterLine.set(append, prepend.length);
+				lines.splice(lineFrom+1, 0, enterLine);
+
 				linesAdded++;
 				cursor.place(lineFrom+1, prepend.length);
 			}
@@ -667,7 +681,6 @@ function Pane(_Hydrogen)
 				let start = line.slice(0, cursor.columnFrom);
 				let end =  line.slice(cursor.columnTo);
 
-				// TODO no '+' for TypedArrays
 				// lines[lineFrom] = start + lines[lineTo].slice(cursor.columnTo);
 				lines[lineFrom] = new Uint32Array(start.length + end.length);
 				lines[lineFrom].set(start);
@@ -852,14 +865,26 @@ function Pane(_Hydrogen)
 				}
 				else
 				{
-					// TODO
-					lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertLines[0];// + line.slice(cursor.columnTo + columnsAdded);
+					let start = line.slice(0, cursor.columnFrom + columnsAdded);
+					lines[lineFrom] = new Uint32Array(start.length + insertLines[0].length);
+					lines[lineFrom].set(start);
+					lines[lineFrom].set(insertLines, start.length);
+
+					// lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertLines[0];// + line.slice(cursor.columnTo + columnsAdded);
 					for(var j = 1; j < insertLines.length-1; j++)
 					{
-						lines.splice(lineFrom+j, 0, insertLines[j]);
+						let typedArrayInsert = new Uint32Array(insertLines[j].length);
+						typedArrayInsert.set(insertLines[j]);
+						lines.splice(lineFrom+j, 0, typedArrayInsert);
 					}
+
 					var lastInsertLineStart = insertLines[insertLines.length-1];
-					lines.splice(lineFrom+insertLines.length-1, 0, lastInsertLineStart + line.slice(cursor.columnTo + columnsAdded));
+					let lastInsertLineEnd = line.slice(cursor.columnTo + columnsAdded);
+					let lastInsertLine = new Uint32Array(lastInsertLineStart.length + lastInsertLineEnd.length);
+					lastInsertLine.set(lastInsertLineStart);
+					lastInsertLine.set(lastInsertLineEnd, lastInsertLineStart.length);
+
+					lines.splice(lineFrom+insertLines.length-1, 0, lastInsertLine);
 					linesAdded += insertLines.length-1;
 					cursor.place(lineFrom+insertLines.length-1, lastInsertLineStart.length);
 				}
