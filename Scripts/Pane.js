@@ -696,15 +696,15 @@ function Pane(_Hydrogen)
 				// XXXXX----
 				let line = lines[lineFrom];
 				let start = line.slice(0, cursor.columnFrom);
-				let end =  line.slice(cursor.columnTo);
+				let end = lines[lineTo].slice(cursor.columnTo);
 
 				// lines[lineFrom] = start + lines[lineTo].slice(cursor.columnTo);
 				lines[lineFrom] = new Uint32Array(start.length + end.length);
 				lines[lineFrom].set(start);
 				lines[lineFrom].set(end, start.length);
+				let dbg = _ConvertToText(lines[lineFrom]);
 
 				columnChange = start.length - cursor.columnTo;
-
 
 				var rem = lineTo-lineFrom;
 				lines.splice(lineFrom+1, rem);
@@ -1022,7 +1022,11 @@ function Pane(_Hydrogen)
 						}
 						else
 						{
-							lines[j] = insertText + lines[j];
+							// TODO lines[j] = insertText + lines[j];
+							let prev = lines[j];
+							lines[j] = new Uint32Array(prev.length + 1);
+							lines[j][0] = 9;
+							lines[j].set(prev, 1);
 						}
 						
 						lastLine = j;
@@ -1060,7 +1064,6 @@ function Pane(_Hydrogen)
 							{
 								case 32:
 								case 9:
-									// TODO
 									let start 	= line.slice(0, cursor.columnFrom - 1 + columnsAdded);
 									let end 	= line.slice(cursor.columnFrom + columnsAdded);
 									lines[lineFrom] = new Uint32Array(start.length + end.length);
@@ -1079,8 +1082,12 @@ function Pane(_Hydrogen)
 							{
 								case 32:
 								case 9:
-									// TODO
-									lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + line.slice(cursor.columnFrom + 1 + columnsAdded);
+									let start = line.slice(0, cursor.columnFrom + columnsAdded);
+									let end = line.slice(cursor.columnFrom + 1 + columnsAdded);
+									lines[lineFrom] = new Uint32Array(start.length + end.length); //line.slice(0, cursor.columnFrom + columnsAdded) + line.slice(cursor.columnFrom + 1 + columnsAdded);
+									lines[lineFrom].set(start);
+									lines[lineFrom].set(end, start.length);
+									
 									columnsAdded--;
 									cursor.place(lineFrom, Math.max(0, cursor.columnFrom + columnsAdded));
 									break;
@@ -1090,9 +1097,14 @@ function Pane(_Hydrogen)
 				}
 				else
 				{
-					// TODO
-					lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnFrom + columnsAdded);
-					columnsAdded += insertText.length;
+					let start = line.slice(0, cursor.columnFrom + columnsAdded);
+					let end = line.slice(cursor.columnFrom + columnsAdded);
+					lines[lineFrom] = new Uint32Array(start.length + 1 + end.length);
+					lines[lineFrom].set(start);
+					lines[lineFrom][start.length] = 9; // TAB CHARACTER
+					lines[lineFrom].set(end, start.length + 1);
+					// lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertText + line.slice(cursor.columnFrom + columnsAdded);
+					columnsAdded += 1;
 					cursor.place(lineFrom, cursor.columnFrom + columnsAdded);
 				}
 			}
