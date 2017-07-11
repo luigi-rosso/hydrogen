@@ -86,6 +86,14 @@ function Cursor(data)
     	_AtEnd = true;
     };
 
+    function _UnmaskChar(c)
+    {
+        // Last 11 bits in the mask represent the color.
+        // By shifting and 0-filling the old positions we can retrieve the current char.
+        let codePoint = (c << 11) >>> 11;
+        return codePoint;
+    }
+
     function _Serialize()
     {
         return {
@@ -103,6 +111,8 @@ function Cursor(data)
         var line = doc.lines[_LineFrom];
         // var c = line.charCodeAt(_ColumnTo);
         let c = line[_ColumnTo];
+        c = _UnmaskChar(c);
+
         if(_IsSpace(c))
         {
             _ColumnFrom = _FindFirstNonSpace(_ColumnTo, -1, line)+1;
@@ -207,6 +217,8 @@ function Cursor(data)
         {
             // var c = line.charCodeAt(i);
             let c = line[i];
+            c = _UnmaskChar(c);
+
             switch(c)
             {
                 case 9:
@@ -227,6 +239,8 @@ function Cursor(data)
         {
             // var c = line.charCodeAt(i);
             let c = line[i];
+            c = _UnmaskChar(c);
+
             switch(c)
             {
                 case 9:
@@ -248,6 +262,8 @@ function Cursor(data)
         {
             // var c = line.charCodeAt(i);
             let c = line[i];
+            c = _UnmaskChar(c);
+
             switch(c)
             {
                 case 9:
@@ -268,6 +284,7 @@ function Cursor(data)
 
     function _IsSpace(c)
     {
+        c = _UnmaskChar(c);
         switch(c)
         {
             case 9:
@@ -280,6 +297,8 @@ function Cursor(data)
 
     function _IsSymbol(c)
     {
+        c = _UnmaskChar(c);
+
         switch(c)
         {
             case 33: // !
@@ -338,6 +357,8 @@ function Cursor(data)
         {
             // var c = line.charCodeAt(i);
             let c = line[i];
+            c = _UnmaskChar(c);
+            
             if(_IsSymbol(c))
             {
                 continue;
@@ -354,11 +375,13 @@ function Cursor(data)
         {
             // var c = line.charCodeAt(i);
             let c = line[i];
-            
+            c = _UnmaskChar(c);
+
             if(_IsSymbol(c))
             {
                 return i;
             }
+
             switch(c)
             {
                 case 9:
@@ -376,6 +399,8 @@ function Cursor(data)
         {
             // var c = line.charCodeAt(i);
             let c = line[i];
+            c = _UnmaskChar(c);
+
             switch(c)
             {
                 case 9:
@@ -409,8 +434,8 @@ function Cursor(data)
             col--;
         }
         
-        // var c = line.charCodeAt(i);
-        let c = line[i];
+        let c = line[col];
+        c = _UnmaskChar(c);
 
         if(_IsSpace(c))
         {

@@ -90,7 +90,9 @@ function Document(_Hydrogen)
             for(let j = 0; j < line.length; j++)
             {
                 // console.log("CODE POINT:", line[j]);
-                let char = String.fromCodePoint(line[j]);
+                // TODO shifting
+                let codePoint = (line[j] << 11) >>> 11;
+                let char = String.fromCodePoint(codePoint);
                 result += char;
             }
 

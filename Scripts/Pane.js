@@ -147,7 +147,9 @@ function Pane(_Hydrogen)
 		let result = "";
 		for(let ti = 0; ti < intArray.length; ti++)
 		{
-			result += String.fromCodePoint(intArray[ti]);
+			let codePoint = (intArray[ti] << 11) >>> 11;
+            let char = String.fromCodePoint(codePoint);
+			result += char;
 		}
 
 		return result;
@@ -827,7 +829,7 @@ function Pane(_Hydrogen)
 		_Hydrogen.scheduleUpdate();
 	}
 
-	function _ReplaceSelectionWith(text, transformer)
+	function _ReplaceSelectionWith(text)
 	{
 		_TriggerChange();
 		// Not really necessary to call this again, no?
@@ -882,11 +884,6 @@ function Pane(_Hydrogen)
 					// let insertText = new Uint32Array(text.length);
 					// for(let ti = 0; ti < text.length; ti++) insertText[ti] = text.codePointAt(ti);						
 
-					if(transformer)
-					{
-						// TODO
-						insertText = transformer(text, cursor.clone(linesAdded, columnsAdded));
-					}
 					// Inserting text into the new line
 					let firstPart = line.slice(0, cursor.columnFrom + columnsAdded);
 					let secondPart = line.slice(cursor.columnTo + columnsAdded);
@@ -1022,7 +1019,7 @@ function Pane(_Hydrogen)
 						}
 						else
 						{
-							// TODO lines[j] = insertText + lines[j];
+							// lines[j] = insertText + lines[j];
 							let prev = lines[j];
 							lines[j] = new Uint32Array(prev.length + 1);
 							lines[j][0] = 9;
