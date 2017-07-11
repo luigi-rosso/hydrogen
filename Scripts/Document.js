@@ -3,10 +3,21 @@ function Document(_Hydrogen)
 	var _This = this;
 	var _LineBreak = '\n';
 	var _Tab = '\t';
-    var _TabCodePoint = 9;
 	var _Lines = [];
 	var _MaxLineLength = 0;
 	var _NumTabSpaces = 4;
+
+    // A Set for more performant lookups
+    var _Keywords = new Set(
+    [
+        "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", 
+        "do", "else", "export", "extends", "finally", "for", "function", "if", "import", "in", 
+        "instanceof", "new", "return", "super", "switch", "this", "throw", "try", "typeof", 
+        "var", "void", "while", "with", "yield",
+        "implements", "interface", "let", "package", "private", "protected", "public", "static"
+    ]);
+
+    var _CodePointsPunctuation = new Set([9, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
 
 	function _FromFile(file)
 	{
@@ -41,13 +52,18 @@ function Document(_Hydrogen)
 
             for(let j = 0; j < stringLine.length; j++)
             {
-                line[j] = stringLine.codePointAt(j);
+                let val = stringLine.codePointAt(j);
+                // let colorIdx = Math.floor(Math.random() * 6.0);
+                // colorIdx = colorIdx << 21;
+                // val = val ^ colorIdx;
+                line[j] = val;
             }
 
             _Lines[i] = line;
 
-            // console.log("STRING:", line);
 		}
+
+        _RepaintLines();
 
 		var end = Date.now();
 
@@ -59,6 +75,72 @@ function Document(_Hydrogen)
 		}
 	}
 
+    function _RepaintLines()
+    {
+
+        for(let i = 0; i < _Lines.length; i++)
+        {
+            let line = _Lines[i];
+            let wordsIdx = new Array();
+            let isNewWord = false;
+            for(let j = 0; j < line.length; j++)
+            {
+                let c = (line[j] << 11) >>> 11;
+
+                if(_CodePointsPunctuation.has(c))
+                {
+                    isNewWord = false;
+                }
+                else 
+                {
+                    if(!isNewWord)
+                    {
+                        isNewWord = true;
+                        wordsIdx.push(j);
+                    }
+                }
+            }
+
+            let lineWords = [];
+
+            for(let wi = 0; wi < wordsIdx.length; wi++)
+            {
+                let col = wordsIdx[wi];
+                let word = String.fromCodePoint(line[col]);
+                let wordEndIdx = col + 1;
+                while(wordEndIdx < line.length && !_CodePointsPunctuation.has(line[wordEndIdx]) )
+                {
+                    word += String.fromCodePoint(line[wordEndIdx++]);
+                }
+
+                if(_Keywords.has(word)){
+                    // col is start offset, and wordEndIdx is end offset
+                    let docWord = line.slice(col, wordEndIdx);
+                    for(let w = col; w < wordEndIdx; w++)
+                    {
+                        let c = line[w];
+                        let colorIdx = 1 << 21;
+                        c = c ^ colorIdx;
+                        line[w] = c;
+                    }
+                    
+                    console.log("JUST FOUND A KEYWORD:", word, docWord);
+                }
+                
+                lineWords.push(word);
+                word.length = 0;
+            }
+
+            let doc = this;
+
+        }
+
+
+    }
+
+
+    var _CodePointTab = 9;
+    var _CodePointSpace = 32;
 
 	this.fromFile = _FromFile;
 	this.setContents = _SetContents;
@@ -91,7 +173,6 @@ function Document(_Hydrogen)
             for(let j = 0; j < line.length; j++)
             {
                 // console.log("CODE POINT:", line[j]);
-                // TODO shifting
                 let codePoint = (line[j] << 11) >>> 11;
                 let char = String.fromCodePoint(codePoint);
                 result += char;
@@ -110,9 +191,14 @@ function Document(_Hydrogen)
 
     this.__defineGetter__("tabCode", function()
     {
-        return _TabCodePoint;
+        return _CodePointTab;
     });
-
+    
+    this.__defineGetter__("keywords", function()
+    {
+        return _Keywords;
+    });
+    
     this.__defineSetter__("text", function(t)
     {
     	_SetContents(t);

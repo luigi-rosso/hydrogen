@@ -14,6 +14,17 @@ var Graphics = function (canvas)
 
     var _Color = new Float32Array(4);
     var _DefaultColor = [ 1.0, 1.0, 1.0, 1.0 ];
+    var _LastColorIdx = 0;
+    var _ColorPalette = 
+    [
+        new Float32Array([1, 1, 1, 1.0]),
+        new Float32Array([0.6, 0.98, 0.59, 1.0]),
+        new Float32Array([1.0, 0.9, 0.8, 1.0]),
+        new Float32Array([0.4, 0.4, 0.4, 1.0]),
+        new Float32Array([0.0, 0.0, 1.0, 1.0]),
+        new Float32Array([0.2, 0.8, 0.2, 1.0])
+    ];
+
     var _ColorBuffer;
     var _CurrentFont;
     var _CurrentFontMap;
@@ -466,11 +477,11 @@ var Graphics = function (canvas)
 
         for(var i = offset; i <= lastChar; i++)
         {
-            var c = t[i]; // Returns the UTF-16 code for the character
-            /* TODO: 
-                - getter 
-                - bit shift/mask for the actual character in its UTF representation
-            */
+            var c = t[i]; // Returns the UTF code for the character.
+            let colorIdx = c >> 21;
+            c = (c << 11) >>> 11;
+            // console.log("COLORIDX:", colorIdx);
+  
             var isTab = false;
             switch(c)
             {
@@ -502,7 +513,12 @@ var Graphics = function (canvas)
             }*/
             if(g.bufferIndex !== -1)
             {
-                // TODO lastColor
+                if(colorIdx != _LastColorIdx)
+                {
+                    _LastColorIdx = colorIdx;
+                    _GL.uniform4fv(_SpriteShader.Uniforms.Color, _ColorPalette[colorIdx]);
+                }
+
                 if(g.ti != _CurrentFontTexture)
                 {
                     _CurrentFontTexture = g.ti;
