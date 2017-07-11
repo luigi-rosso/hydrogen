@@ -711,7 +711,7 @@ function Pane(_Hydrogen)
 				lines[lineFrom] = new Uint32Array(start.length + end.length);
 				lines[lineFrom].set(start);
 				lines[lineFrom].set(end, start.length);
-				let dbg = _ConvertToText(lines[lineFrom]);
+				let dbg = _ConvertToText(lines[lineFrom]); // TODO remove: for debugging purposes only 
 
 				columnChange = start.length - cursor.columnTo;
 
@@ -892,6 +892,14 @@ function Pane(_Hydrogen)
 					// for(let ti = 0; ti < text.length; ti++) insertText[ti] = text.codePointAt(ti);						
 
 					// Inserting text into the new line
+					let prevChar = line[cursor.columnFrom-1];
+					let prevColorIdx = (prevChar) ? (prevChar >> 21) : 0;
+					prevColorIdx = prevColorIdx << 21;
+					for(let tc = 0; tc < insertText.length; tc++)
+					{
+						insertText[tc] = insertText[tc] ^ prevColorIdx; // Add in the color 
+					}
+
 					let firstPart = line.slice(0, cursor.columnFrom + columnsAdded);
 					let secondPart = line.slice(cursor.columnTo + columnsAdded);
 					// let finalLine = firstPart + insertText + secondPart;

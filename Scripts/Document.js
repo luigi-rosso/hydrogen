@@ -87,17 +87,18 @@ function Document(_Hydrogen)
             {
                 let c = (line[j] << 11) >>> 11;
 
-                if(_CodePointsPunctuation.has(c))
+                switch(true)
                 {
-                    isNewWord = false;
-                }
-                else 
-                {
-                    if(!isNewWord)
-                    {
-                        isNewWord = true;
-                        wordsIdx.push(j);
-                    }
+                    case _CodePointsPunctuation.has(c):
+                        isNewWord = false;
+                        break;
+                    default:
+                        if(!isNewWord)
+                        {
+                            isNewWord = true;
+                            wordsIdx.push(j);
+                        }
+                        break;
                 }
             }
 
@@ -115,7 +116,6 @@ function Document(_Hydrogen)
 
                 if(_Keywords.has(word)){
                     // col is start offset, and wordEndIdx is end offset
-                    let docWord = line.slice(col, wordEndIdx);
                     for(let w = col; w < wordEndIdx; w++)
                     {
                         let c = line[w];
@@ -123,8 +123,6 @@ function Document(_Hydrogen)
                         c = c ^ colorIdx;
                         line[w] = c;
                     }
-                    
-                    console.log("JUST FOUND A KEYWORD:", word, docWord);
                 }
                 
                 lineWords.push(word);
@@ -134,10 +132,7 @@ function Document(_Hydrogen)
             let doc = this;
 
         }
-
-
     }
-
 
     var _CodePointTab = 9;
     var _CodePointSpace = 32;
