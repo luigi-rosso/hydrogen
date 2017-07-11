@@ -631,17 +631,24 @@ function Pane(_Hydrogen)
 							break;
 					}
 				}
-				var prepend = "";
+				
 				if(firstNonWhiteIndex === -1)
 				{
 					firstNonWhiteIndex = remainingLine.length;
 				}
+
+				let prepend = new Uint32Array();
 				if(firstNonWhiteIndex !== -1)
 				{
 					prepend = remainingLine.slice(0, firstNonWhiteIndex);
-					if(firstNonWhiteCode === 123)
+					if(firstNonWhiteCode === 123) // Add a tab if first char is a '{' 
 					{
-						prepend += _Document.tab;	
+						// prepend += _Document.tab;
+						let pr = new Uint32Array(prepend.length + 1);
+						pr.set(prepend);
+						// pr.set(_Document._TabCodePoint, prepend.length);
+						pr[prepend.length] = _Document.tabCode;
+						prepend = pr;
 					}
 				}
 

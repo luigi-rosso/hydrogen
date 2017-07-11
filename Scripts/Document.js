@@ -3,6 +3,7 @@ function Document(_Hydrogen)
 	var _This = this;
 	var _LineBreak = '\n';
 	var _Tab = '\t';
+    var _TabCodePoint = 9;
 	var _Lines = [];
 	var _MaxLineLength = 0;
 	var _NumTabSpaces = 4;
@@ -45,7 +46,7 @@ function Document(_Hydrogen)
 
             _Lines[i] = line;
 
-            console.log("STRING:", line);
+            // console.log("STRING:", line);
 		}
 
 		var end = Date.now();
@@ -105,6 +106,11 @@ function Document(_Hydrogen)
     this.__defineGetter__("tab", function()
     {
         return _Tab;
+    });
+
+    this.__defineGetter__("tabCode", function()
+    {
+        return _TabCodePoint;
     });
 
     this.__defineSetter__("text", function(t)
