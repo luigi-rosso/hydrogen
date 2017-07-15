@@ -1,5 +1,6 @@
 function Document(_Hydrogen)
 {
+    var _Acorn = window.acorn;
 	var _This = this;
 	var _LineBreak = '\n';
 	var _Tab = '\t';
@@ -73,6 +74,10 @@ function Document(_Hydrogen)
 		{
 			_This.onContentsChange();
 		}
+
+        let highlighter = new Highlighter();
+        highlighter.process(_Lines);
+
 	}
 
     function _RepaintLines()

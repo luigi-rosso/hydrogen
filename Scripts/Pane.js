@@ -892,12 +892,19 @@ function Pane(_Hydrogen)
 					// for(let ti = 0; ti < text.length; ti++) insertText[ti] = text.codePointAt(ti);						
 
 					// Inserting text into the new line
-					let prevChar = line[cursor.columnFrom-1];
-					let prevColorIdx = (prevChar) ? (prevChar >> 21) : 0;
-					prevColorIdx = prevColorIdx << 21;
+					let adjChar = line[cursor.columnFrom-1];
+					let adjColorIdx = (adjChar) ? (adjChar >> 21) : 0;
+					adjColorIdx = adjColorIdx << 21;
+					if(!adjChar || !adjColorIdx) // If needed also check the following char 
+					{
+						adjChar = line[cursor.columnFrom+1];
+						adjColorIdx = (adjChar) ? (adjChar >> 21) : 0;
+						adjColorIdx = adjColorIdx << 21;
+					}
+
 					for(let tc = 0; tc < insertText.length; tc++)
 					{
-						insertText[tc] = insertText[tc] ^ prevColorIdx; // Add in the color 
+						insertText[tc] = insertText[tc] ^ adjColorIdx; // Add in the color 
 					}
 
 					let firstPart = line.slice(0, cursor.columnFrom + columnsAdded);
