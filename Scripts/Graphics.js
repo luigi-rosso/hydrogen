@@ -20,8 +20,8 @@ var Graphics = function (canvas)
         new Float32Array([1, 1, 1, 1.0]),
         new Float32Array([0.6, 0.98, 0.59, 1.0]),
         new Float32Array([1.0, 0.9, 0.8, 1.0]),
-        new Float32Array([0.4, 0.4, 0.4, 1.0]),
-        new Float32Array([0.0, 0.0, 1.0, 1.0]),
+        new Float32Array([0.12, 0.54, 0.91, 1.0]),
+        new Float32Array([0.91, 0.12, 0.12, 1.0]),
         new Float32Array([0.2, 0.8, 0.2, 1.0])
     ];
 
