@@ -93,8 +93,10 @@ function Highlighter()
 			case "Identifier":
 			{
 				_HandleIdentifier(node, colorIdx);
-				break;
 			}
+				break;
+			case "Literal":
+				_HandleLiteral(node);
 				break;
 			case "VariableDeclaration":
 			{
@@ -142,7 +144,7 @@ function Highlighter()
 
 	function _HandleIdentifier(identifier, color)
 	{
-		let startLine = identifier.loc.start.line - 1; // Lines are 1-indexed
+		let startLine = identifier.loc.start.line - 1; // Lines are 1-indexed.
 		let startCol = identifier.loc.start.column;
 		let endLine = identifier.loc.end.line - 1;
 		let endCol = identifier.loc.end.column;
@@ -150,7 +152,12 @@ function Highlighter()
 		for(let i = startLine; i <= endLine; i++)
 		{
 			let line = _Lines[i];
-			for(let j = startCol; j < endCol; j++)
+
+			// For multiline case
+			let start = (i == startLine) ? startCol : 0;
+			let stop = (i == endLine) ? endCol : line.length;
+
+			for(let j = start; j < stop; j++)
 			{
 				let c = line[j];
 				c = colorChar(c, color);
@@ -159,9 +166,33 @@ function Highlighter()
 		}
 	}
 
-	function _HandleExpression(node)
+	function _HandleLiteral(node)
 	{
-		// TODO
+		let startLine = node.loc.start.line - 1; // Lines are 1-indexed.
+		let endLine = node.loc.end.line - 1;
+		let startCol = node.loc.start.column;
+		let endCol = node.loc.end.column;
+
+		for(let i = startLine; i <= endLine; i++)
+		{
+			let line = _Lines[i];
+
+			// For multiline case
+			let start = (i == startLine) ? startCol : 0;
+			let stop = (i == endLine) ? endCol : line.length;
+			
+			for(let j = start; j < stop; j++)
+			{
+				let c = line[j];
+				c = colorChar(c, 1);
+				_Lines[i][j] = c;
+			}
+		}
+
+	}
+
+	function _HandleExpression(node, color)
+	{
 		/*
 			Expression <=: 
 				ThisExpression | Identifier | Literal |
@@ -188,9 +219,23 @@ function Highlighter()
 				}
 
 				break;
+
 			case "Identifier":
-				_HandleIdentifier();
+				_HandleIdentifier(node, color);
 				break;
+
+			case "Literal":
+				_HandleLiteral(node);
+				break;
+
+			case "ArrayExpression":
+				if(node.elements)
+					node.elements.forEach(function(el)
+						{
+							_HandleExpression(el);
+						});
+				break;
+
 			case "FunctionExpression":
 				// Highlight function word
 				if (node.id)
@@ -207,6 +252,19 @@ function Highlighter()
 				break;
 			
 			case "NewExpression":
+				{
+					// Color the 'new' keyword
+					let startLine = node.loc.start.line - 1;
+					let line = _Lines[startLine];
+					let startCol = node.loc.start.column;
+					
+					for(let i = startCol; i < startCol + 3; i++)
+					{
+						let c = line[i];
+						c = colorChar(c, 4);
+						_Lines[startLine][i] = c;
+					}
+				}
 				_HandleExpression(node.callee);
 
 				node.arguments.forEach(function(el)
