@@ -15,6 +15,7 @@ OUTPUT:
 
 function Highlighter()
 {
+	let _CodePointsPunctuation = new Set([9, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
 	let _Acorn = window.acorn;
 	let _Lines;
 
@@ -22,6 +23,22 @@ function Highlighter()
 	function _Process(lines)
 	{
 		_Lines = lines; // Store|Override the lines locally
+		
+		// Color punctuation
+		for(let i = 0; i < _Lines.length; i++)
+		{
+			let line = _Lines[i];
+
+			for(let j = 0; j < line.length; j++)
+			{
+				let cp = _Lines[i][j];
+				cp = (cp << 11) >>> 11; // Clean out older colors
+				if(_CodePointsPunctuation.has(cp))
+				{
+					_Lines[i][j] = colorChar(cp, 5);
+				}
+			}
+		}
 		
 		let text = _ConvertCodePoints(lines);
 
