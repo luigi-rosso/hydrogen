@@ -11,8 +11,6 @@ OUTPUT:
 	Masked Uint32Arrays containing the Color Codes for each token in the document
 */
 
-// TODO color palette
-
 function Highlighter()
 {
 	let _CodePointsPunctuation = new Set([9, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
@@ -39,7 +37,7 @@ function Highlighter()
 				}
 			}
 		}
-		
+
 		let text = _ConvertCodePoints(lines);
 
 		try
@@ -51,6 +49,58 @@ function Highlighter()
 		{
 			console.log("PARSE FAILED:", e);
 		}
+
+		// Color Comments
+		let multilineComment = false;
+
+		for(let i = 0; i < _Lines.length; i++)
+		{
+			let line = _Lines[i];
+
+			for(let j = 0; j < line.length; j++)
+			{
+				let cp = _Lines[i][j];
+				cp = (cp << 11) >>> 11; // Clean out older colors
+
+				if(multilineComment)
+				{
+					_Lines[i][j] = colorChar(cp, 6); // Color '*'
+					if(cp === 42) // '*' character
+					{
+						let adj = _Lines[i][j+1];
+						adj = (adj << 11) >>> 11;
+						if(adj === 47) // '/' character
+						{
+							multilineComment = false;
+							_Lines[i][j+1] = colorChar(adj, 6);	// Color '/'
+						}
+					}
+				}
+				else if(cp === 47) // '/' character
+				{
+					let adj = _Lines[i][j+1];
+					adj = (adj << 11) >>> 11;
+					if(adj === 47)
+					{
+						// Single line comment, color rest of the line
+						while(j < line.length)
+						{
+							cp = _Lines[i][j];
+							cp = (cp << 11) >>> 11;
+							_Lines[i][j] = colorChar(cp, 6);
+							j++;
+						}
+					}
+					else if(adj === 42) // '*' character
+					{
+						multilineComment = true;
+						_Lines[i][j] = colorChar(cp, 6); 	// Color '/'
+					}
+					
+				}
+			}
+		}
+
 	}
 
 	function _ParseTree(tree)
@@ -351,7 +401,8 @@ function Highlighter()
 			case "MemberExpression":
 				{
 					_HandleExpression(node.object);
-					_HandleExpression(node.property, color);
+					let c = node.computed ? 0 : color;
+					_HandleExpression(node.property, c);
 				}
 				break;
 

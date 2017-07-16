@@ -22,7 +22,8 @@ var Graphics = function (canvas)
         new Float32Array([0.95, 0.69, 0.41, 1.0]),  // 2) LIGHT ORANGE
         new Float32Array([0.12, 0.54, 0.91, 1.0]),  // 3) ELECTRIC BLUE
         new Float32Array([0.91, 0.12, 0.12, 1.0]),  // 4) INTENSE RED
-        new Float32Array([0.66, 0.82, 0.96, 1.0])   // 5) LIGHT BLUE
+        new Float32Array([0.66, 0.82, 0.96, 1.0]),  // 5) LIGHT BLUE
+        new Float32Array([0.55, 0.47, 0.44, 1.0])   // 6) BROWN (FOR COMMENTS);
     ];
 
     var _ColorBuffer;
