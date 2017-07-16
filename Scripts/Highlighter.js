@@ -58,14 +58,30 @@ function Highlighter()
 		switch(curType)
 		{
 			case "FunctionDeclaration":
+				{
+					// Color the function keyword
+					let startLine = node.loc.start.line - 1;
+					let startCol = node.loc.start.column;
+					let endCol = startCol + "function".length;
+
+					let line = _Lines[startLine];
+
+					for(let i = startCol; i < endCol; i++)
+					{
+						let c = line[i];
+						c = colorChar(c, 3);
+						_Lines[startLine][i] = c;
+					}
+				}
+
 				if(node.id)
 				{
-					_HandleNode(node.id);
+					_HandleNode(node.id, 5);
 				}
 
 				node.params.forEach(function(el)
 					{
-						_HandleNode(el, 3);
+						_HandleNode(el, 1);
 					});
 				
 				let body = node.body; // BlockStatement || Expression
@@ -79,6 +95,9 @@ function Highlighter()
 					_HandleNode(s);
 				}
 
+				break;
+			case "ExpressionStatement":
+				_HandleExpression(node.expression);
 				break;
 			case "AssignmentPattern":
 				// TODO 
@@ -100,6 +119,7 @@ function Highlighter()
 				break;
 			case "VariableDeclaration":
 			{
+				// Coloring 'var','let','const' keyword
 				let line = _Lines[node.loc.start.line - 1];
 				let startCol = node.loc.start.column;
 				let numCols = node.kind.length;
@@ -107,7 +127,7 @@ function Highlighter()
 				for(let i = 0; i < numCols; i++)
 				{
 					let c = line[startCol + i];
-					c = colorChar(c, 2);
+					c = colorChar(c, 3);
                     line[startCol + i] = c;
 				}
 
@@ -236,6 +256,10 @@ function Highlighter()
 						});
 				break;
 
+			case "ObjectExpression":
+
+				break;
+
 			case "FunctionExpression":
 				// Highlight function word
 				if (node.id)
@@ -249,8 +273,35 @@ function Highlighter()
 						_HandleNode(el);
 					});
 
+				_HandleNode(node.body);
+
 				break;
 			
+			case "ArrowFunctionExpression":
+
+				break;
+
+			case "ClassExpression":
+
+				break;
+
+			case "TaggedTemplateExpression":
+
+				break;
+
+			case "MemberExpression":
+				{
+					node.object; // TODO this is the caller
+					_HandleExpression(node.property, color);
+				}
+				break;
+
+			case "Super":
+				break;
+
+			case "MetaProperty":
+				break;
+
 			case "NewExpression":
 				{
 					// Color the 'new' keyword
@@ -265,13 +316,52 @@ function Highlighter()
 						_Lines[startLine][i] = c;
 					}
 				}
-				_HandleExpression(node.callee);
+				// Color the Object name.
+				_HandleExpression(node.callee, 2);
 
 				node.arguments.forEach(function(el)
 					{
 						_HandleExpression(el);
 					});
 
+				break;
+			case "CallExpression":
+				_HandleExpression(node.callee, 5);
+
+				node.arguments.forEach(function(el)
+					{
+						_HandleExpression(el);
+					});
+
+				break;
+
+			case "UpdateExpression":
+				break;
+
+			case "AwaitExpression":
+				break;
+
+			case "UnaryExpression":
+				break;
+
+			case "BinaryExpression":
+				break;
+
+			case "LogicalExpression":
+				break;
+
+			case "ConditionalExpression":
+				break;
+
+			case "YieldExpression":
+				break;
+
+			case "AssignmentExpression":
+				_HandleExpression(node.left, 5);
+				_HandleExpression(node.right, 5);
+				break;
+
+			case "SequenceExpression":
 				break;
 
 			default:

@@ -17,12 +17,12 @@ var Graphics = function (canvas)
     var _LastColorIdx = 0;
     var _ColorPalette = 
     [
-        new Float32Array([1, 1, 1, 1.0]),
-        new Float32Array([0.6, 0.98, 0.59, 1.0]),
-        new Float32Array([1.0, 0.9, 0.8, 1.0]),
-        new Float32Array([0.12, 0.54, 0.91, 1.0]),
-        new Float32Array([0.91, 0.12, 0.12, 1.0]),
-        new Float32Array([0.2, 0.8, 0.2, 1.0])
+        new Float32Array([1, 1, 1, 1.0]),           // 0) WHITE
+        new Float32Array([0.6, 0.98, 0.59, 1.0]),   // 1) LIGHT GREEN
+        new Float32Array([0.95, 0.69, 0.41, 1.0]),  // 2) LIGHT ORANGE
+        new Float32Array([0.12, 0.54, 0.91, 1.0]),  // 3) ELECTRIC BLUE
+        new Float32Array([0.91, 0.12, 0.12, 1.0]),  // 4) INTENSE RED
+        new Float32Array([0.66, 0.82, 0.96, 1.0])   // 5) LIGHT BLUE
     ];
 
     var _ColorBuffer;
