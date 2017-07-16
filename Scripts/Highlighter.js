@@ -100,13 +100,33 @@ function Highlighter()
 				_HandleExpression(node.expression);
 				break;
 
+			case "IfStatement":
+				{
+					let startLine = node.loc.start.line - 1;
+					let line = _Lines[startLine]
+					let startCol = node.loc.start.column;
+					let endCol = startCol + "if".length;
+
+					for(let i = startCol; i < endCol; i++)
+					{
+						let c = line[i];
+						c = colorChar(c, 3);
+						_Lines[startLine][i] = c;
+					}
+				}
+				_HandleExpression(node.test);
+				_HandleNode(node.consequent);
+				if(node.alternate) _HandleNode(node.alternate);
+				break;
+
 			case "ForStatement":
 				{
 					let startLine = node.loc.start.line - 1;
 					let line = _Lines[startLine]
 					let startCol = node.loc.start.column;
+					let endCol = startCol + "for".length;
 
-					for(let i = startCol; i < startCol + 3; i++)
+					for(let i = startCol; i < endCol; i++)
 					{
 						let c = line[i];
 						c = colorChar(c, 3);
@@ -313,7 +333,7 @@ function Highlighter()
 
 			case "MemberExpression":
 				{
-					node.object; // TODO this is the caller
+					_HandleExpression(node.object);
 					_HandleExpression(node.property, color);
 				}
 				break;
