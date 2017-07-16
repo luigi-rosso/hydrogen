@@ -99,6 +99,28 @@ function Highlighter()
 			case "ExpressionStatement":
 				_HandleExpression(node.expression);
 				break;
+
+			case "ForStatement":
+				{
+					let startLine = node.loc.start.line - 1;
+					let line = _Lines[startLine]
+					let startCol = node.loc.start.column;
+
+					for(let i = startCol; i < startCol + 3; i++)
+					{
+						let c = line[i];
+						c = colorChar(c, 3);
+						_Lines[startLine][i] = c;
+					}
+				}
+				if(node.init) _HandleNode(node.init);
+				if(node.test) _HandleExpression(node.test);
+				if(node.update) _HandleExpression(node.update);
+
+				_HandleNode(node.body);
+
+				break;
+
 			case "AssignmentPattern":
 				// TODO 
 				break;
