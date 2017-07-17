@@ -352,7 +352,26 @@ function Highlighter()
 				break;
 
 			case "ClassExpression":
-// TODO
+				// TODO color class keyword
+				if(node.id)
+				{
+					_HandleIdentifier(node.id);
+				}
+				
+				if(node.superClass)
+				{
+					_HandleIdentifier(node.superClass);
+				}
+
+				let classBody = node.body;
+
+				classBody.body.forEach(function(el)
+					{
+						// Each element is a Method Definition
+						if(el.key) _HandleExpression(el.key);
+						if(el.value) _HandleExpression(el.value);
+					});
+
 				break;
 
 			case "TaggedTemplateExpression":
