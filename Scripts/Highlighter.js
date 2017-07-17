@@ -356,7 +356,7 @@ function Highlighter()
 				break;
 
 			case "TaggedTemplateExpression":
-// TODO
+				// TODO
 				break;
 
 			case "MemberExpression":
@@ -368,11 +368,13 @@ function Highlighter()
 				break;
 
 			case "Super":
-				// TODO
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "super", 4);
 				break;
 
 			case "MetaProperty":
-				// TODO
+				_HandleExpression(node.meta);
+				_HandleExpression(node.property);
+
 				break;
 
 			case "NewExpression":
@@ -442,7 +444,12 @@ function Highlighter()
 				break;
 
 			case "YieldExpression":
-				// TODO
+				if(node.argument)
+					_HandleExpression(node.argument);
+				// TODO test color 'yield' keyword
+				/*
+				* colorWord(node.loc.start.line - 1, node.loc.start.column, "yield", 4);
+				*/
 				break;
 
 			case "AssignmentExpression":
