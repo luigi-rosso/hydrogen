@@ -176,14 +176,10 @@ function Highlighter()
 				if(node.argument) _HandleExpression(node.argument);
 				break;
 
-			case "AssignmentPattern":
-				// TODO 
-				break;
-			case "ArrayPattern":
-				// TODO
-				break;
-			case "ObjectPattern":
-				// TODO
+			case "Property":
+				_HandleNode(node.key);
+				_HandleExpression(node.value);
+				// TODO node.kind coloring
 				break;
 
 			case "Identifier":
@@ -326,10 +322,6 @@ function Highlighter()
 						});
 				break;
 
-			case "ObjectExpression":
-
-				break;
-
 			case "FunctionExpression":
 				if (node.id)
 				{
@@ -347,15 +339,24 @@ function Highlighter()
 				break;
 			
 			case "ArrowFunctionExpression":
+				if(node.id)
+				{
+					_HandleExpression(node.id);
+				}
+
+				node.params.forEach(function(el)
+					{
+						_HandleNode(el);
+					});
 
 				break;
 
 			case "ClassExpression":
-
+// TODO
 				break;
 
 			case "TaggedTemplateExpression":
-
+// TODO
 				break;
 
 			case "MemberExpression":
@@ -367,9 +368,11 @@ function Highlighter()
 				break;
 
 			case "Super":
+				// TODO
 				break;
 
 			case "MetaProperty":
+				// TODO
 				break;
 
 			case "NewExpression":
@@ -439,6 +442,7 @@ function Highlighter()
 				break;
 
 			case "YieldExpression":
+				// TODO
 				break;
 
 			case "AssignmentExpression":
@@ -468,11 +472,35 @@ function Highlighter()
 					});
 				break;
 
+			case "AssignmentPattern":
+				_HandleNode(node.left);
+				_HandleExpression(node.right);
+				break;
+
+			case "ArrayPattern":
+				// elements <: AssignmentPattern | Identifier | BindingPattern | RestElement | null
+				// BindingPattern = ArrayPattern | ObjectPattern
+				if(node.elements)
+				{
+					node.elements.forEach(function(el)
+						{
+							_HandleNode(el);
+						});
+				}
+				break;
+
+			case "ObjectExpression":
+			case "ObjectPattern":
+				node.properties.forEach(function(el)
+					{
+						_HandleExpression(el);
+					});
+				break;
+
 			default:
 				break;
 		}
 	}
-
 
 	function _ConvertCodePoints(lines)
 	{
