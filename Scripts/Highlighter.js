@@ -125,22 +125,8 @@ function Highlighter()
 		switch(curType)
 		{
 			case "FunctionDeclaration":
-				{
-					// Color the function keyword
-					let startLine = node.loc.start.line - 1;
-					let startCol = node.loc.start.column;
-					let endCol = startCol + "function".length;
-
-					let line = _Lines[startLine];
-
-					for(let i = startCol; i < endCol; i++)
-					{
-						let c = line[i];
-						c = colorChar(c, 3);
-						_Lines[startLine][i] = c;
-					}
-				}
-
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "function", 3);
+				
 				if(node.id)
 				{
 					_HandleNode(node.id, 5);
@@ -168,44 +154,26 @@ function Highlighter()
 				break;
 
 			case "IfStatement":
-				{
-					let startLine = node.loc.start.line - 1;
-					let line = _Lines[startLine]
-					let startCol = node.loc.start.column;
-					let endCol = startCol + "if".length;
-
-					for(let i = startCol; i < endCol; i++)
-					{
-						let c = line[i];
-						c = colorChar(c, 3);
-						_Lines[startLine][i] = c;
-					}
-				}
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "if", 3);
 				_HandleExpression(node.test);
 				_HandleNode(node.consequent);
 				if(node.alternate) _HandleNode(node.alternate);
 				break;
 
 			case "ForStatement":
-				{
-					let startLine = node.loc.start.line - 1;
-					let line = _Lines[startLine]
-					let startCol = node.loc.start.column;
-					let endCol = startCol + "for".length;
-
-					for(let i = startCol; i < endCol; i++)
-					{
-						let c = line[i];
-						c = colorChar(c, 3);
-						_Lines[startLine][i] = c;
-					}
-				}
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "for", 3);
 				if(node.init) _HandleNode(node.init);
 				if(node.test) _HandleExpression(node.test);
 				if(node.update) _HandleExpression(node.update);
 
 				_HandleNode(node.body);
 
+				break;
+
+			case "ReturnStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "return", 4);
+				
+				if(node.argument) _HandleExpression(node.argument);
 				break;
 
 			case "AssignmentPattern":
@@ -219,33 +187,22 @@ function Highlighter()
 				break;
 
 			case "Identifier":
-			{
-				_HandleIdentifier(node, colorIdx);
-			}
+				{
+					_HandleIdentifier(node, colorIdx);
+				}
 				break;
 			case "Literal":
 				_HandleLiteral(node);
 				break;
 			case "VariableDeclaration":
-			{
-				// Coloring 'var','let','const' keyword
-				let line = _Lines[node.loc.start.line - 1];
-				let startCol = node.loc.start.column;
-				let numCols = node.kind.length;
-
-				for(let i = 0; i < numCols; i++)
-				{
-					let c = line[startCol + i];
-					c = colorChar(c, 3);
-                    line[startCol + i] = c;
-				}
+				colorWord(node.loc.start.line - 1, node.loc.start.column, node.kind, 3);
 
 				for(let i = 0; i < node.declarations.length; i++)
 				{
 					let d = node.declarations[i];
 					_HandleNode(d);
 				}	
-			}
+
 				break;
 
 			case "VariableDeclarator":
@@ -269,6 +226,19 @@ function Highlighter()
 		c = c ^ colorIdx;
 
 		return c;
+	}
+
+	function colorWord(lineNo, colNo, word, color)
+	{
+		let line = _Lines[lineNo];
+		let endCol = colNo + word.length;
+
+		for(let i = colNo; i < endCol; i++)
+		{
+			let c = line[i];
+			c = colorChar(c, color);
+			_Lines[lineNo][i] = c;
+		}
 	}
 
 	function _HandleIdentifier(identifier, color)
@@ -331,22 +301,13 @@ function Highlighter()
 			    BinaryExpression | LogicalExpression | ConditionalExpression |
 			    YieldExpression | AssignmentExpression | SequenceExpression;
 		*/
+		
+		console.log("GOING IN:", node.type, node.loc);
+
 		switch(node.type)
 		{
 			case "ThisExpression":
-				{
-					let startLine = node.loc.start.line - 1;
-					let startCol = node.loc.start.column;
-					let line = _Lines[startLine];
-
-					for(let i = 0; i < 4; i++)
-					{
-						let c = line[startCol + i];
-						c = colorChar(c, 4);
-						_Lines[startLine][startCol + i] = c;
-					}
-				}
-
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "this", 4);
 				break;
 
 			case "Identifier":
@@ -370,7 +331,6 @@ function Highlighter()
 				break;
 
 			case "FunctionExpression":
-				// Highlight function word
 				if (node.id)
 				{
 					_HandleNode(node.id); // Identifier Node
@@ -413,20 +373,8 @@ function Highlighter()
 				break;
 
 			case "NewExpression":
-				{
-					// Color the 'new' keyword
-					let startLine = node.loc.start.line - 1;
-					let line = _Lines[startLine];
-					let startCol = node.loc.start.column;
-					
-					for(let i = startCol; i < startCol + 3; i++)
-					{
-						let c = line[i];
-						c = colorChar(c, 4);
-						_Lines[startLine][i] = c;
-					}
-				}
-				// Color the Object name.
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "new", 4);
+
 				_HandleExpression(node.callee, 2);
 
 				node.arguments.forEach(function(el)
