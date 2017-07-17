@@ -394,6 +394,15 @@ function Highlighter()
 				break;
 
 			case "UpdateExpression":
+				if(node.prefix)
+				{
+					colorWord(node.loc.start.line - 1, node.loc.start.column, node.operator, 5);
+				}
+				else
+				{
+					colorWord(node.loc.end.line - 1, node.loc.end.column - node.operator.length, node.operator, 5);
+				}
+				
 				break;
 
 			case "AwaitExpression":
@@ -403,6 +412,21 @@ function Highlighter()
 				break;
 
 			case "BinaryExpression":
+				{
+					// Color the operator in between
+					let startCol = node.left.loc.end.column;
+					let endCol = node.right.loc.start.column;
+					let line = _Lines[node.loc.start.line - 1];
+
+					// TODO handle multiline case
+					for(let i = startCol; i < endCol; i++)
+					{
+						let c = line[i];
+						c = colorChar(c, 5);
+						_Lines[node.loc.start.line - 1][i] = c;
+					}
+				}
+
 				break;
 
 			case "LogicalExpression":
