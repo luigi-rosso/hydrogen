@@ -149,17 +149,36 @@ function Highlighter()
 				}
 
 				break;
+
+			case "BreakStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "break", 4);
+				if(node.label) _HandleNode(node.label);
+				break;
+
+			case "ContinueStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "continue", 4);
+				
+				break;
+
+			case "DebuggerStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "debugger", 4);
+				
+				break;
+
+			case "DoWhileStatement":
+				_HandleNode(node.body);
+				_HandleExpression(node.test);
+
+				break;
+
+			case "EmptyStatement":
+				// Nothing to see here
+				break;
+
 			case "ExpressionStatement":
 				_HandleExpression(node.expression);
 				break;
-
-			case "IfStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "if", 3);
-				_HandleExpression(node.test);
-				_HandleNode(node.consequent);
-				if(node.alternate) _HandleNode(node.alternate);
-				break;
-
+			
 			case "ForStatement":
 				colorWord(node.loc.start.line - 1, node.loc.start.column, "for", 3);
 				if(node.init) _HandleNode(node.init);
@@ -170,10 +189,121 @@ function Highlighter()
 
 				break;
 
+			case "ForOfStatement":
+			case "ForInStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "for", 3);
+
+				if(node.left.type === "VariableDeclaration")
+					_HandleNode(node.left);
+				else
+					_HandleExpression(node.left);
+
+				_HandleExpression(node.right);
+				_HandleNode(node.body);
+
+				break;
+
+			case "IfStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "if", 3);
+				_HandleExpression(node.test);
+				_HandleNode(node.consequent);
+				if(node.alternate) _HandleNode(node.alternate);
+				break;
+
+			case "LabeledStatement":
+				_HandleNode(node.label);
+				_HandleNode(node.body);
+
+				break;
+
 			case "ReturnStatement":
 				colorWord(node.loc.start.line - 1, node.loc.start.column, "return", 4);
 				
 				if(node.argument) _HandleExpression(node.argument);
+				break;
+
+			case "SwitchStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "switch", 3);
+
+				_HandleExpression(node.discriminant);
+				
+				node.cases.forEach(function(el)
+					{
+						_HandleNode(el);
+					});
+				break;
+
+			case "SwitchCase":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "case", 3);
+				if(node.test) _HandleExpression(node.test);
+
+				node.consequent.forEach(function(el)
+					{
+						_HandleNode(el);
+					});
+
+				break;
+
+			case "ThrowStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "throw", 4);
+
+				_HandleExpression(node.argument);
+
+				break;
+			
+			case "TryStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "try", 3);
+
+				_HandleNode(node.block);
+				if(node.handler) _HandleNode(node.handler);
+				node.guardedHandlers.forEach(function(el)
+					{
+						_HandleNode(el);
+					});
+
+				if(node.finalizer) _HandleNode(node.finalizer);
+
+				break;
+
+			case "CatchClause":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "catch", 3);
+				_HandleExpression(node.param);
+				if(node.guard) _HandleExpression(node.guard);
+				_HandleNode(node.body);
+
+				break;
+
+			case "VariableDeclaration":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, node.kind, 3);
+
+				for(let i = 0; i < node.declarations.length; i++)
+				{
+					let d = node.declarations[i];
+					_HandleNode(d);
+				}	
+
+				break;
+
+			case "WhileStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "while", 3);
+				_HandleExpression(node.test);
+				_HandleNode(node.body);
+				break;
+
+			case "WithStatement":
+				colorWord(node.loc.start.line - 1, node.loc.start.column, "with", 3);
+
+				_HandleExpression(node.object);
+				_HandleNode(node.body);
+				break;
+
+
+			case "VariableDeclarator":
+				if(node.init)
+				{
+					_HandleExpression(node.init);
+				}
+
 				break;
 
 			case "Property":
@@ -190,25 +320,6 @@ function Highlighter()
 			case "Literal":
 				_HandleLiteral(node);
 				break;
-			case "VariableDeclaration":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, node.kind, 3);
-
-				for(let i = 0; i < node.declarations.length; i++)
-				{
-					let d = node.declarations[i];
-					_HandleNode(d);
-				}	
-
-				break;
-
-			case "VariableDeclarator":
-				if(node.init)
-				{
-					_HandleExpression(node.init);
-				}
-
-				break;
-
 			default:
 				break;
 		}
