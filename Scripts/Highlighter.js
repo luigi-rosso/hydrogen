@@ -256,11 +256,6 @@ function Highlighter()
 
 				_HandleNode(node.block);
 				if(node.handler) _HandleNode(node.handler);
-				node.guardedHandlers.forEach(function(el)
-					{
-						_HandleNode(el);
-					});
-
 				if(node.finalizer) _HandleNode(node.finalizer);
 
 				break;
