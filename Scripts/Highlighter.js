@@ -392,7 +392,8 @@ function Highlighter()
 					});
 
 				break;
-
+			
+			case "UnaryExpression":
 			case "UpdateExpression":
 				if(node.prefix)
 				{
@@ -402,16 +403,15 @@ function Highlighter()
 				{
 					colorWord(node.loc.end.line - 1, node.loc.end.column - node.operator.length, node.operator, 5);
 				}
-				
+
 				break;
 
 			case "AwaitExpression":
-				break;
-
-			case "UnaryExpression":
+			_HandleExpression(node.argument);
 				break;
 
 			case "BinaryExpression":
+			case "LogicalExpression":
 				{
 					// Color the operator in between
 					let startCol = node.left.loc.end.column;
@@ -427,23 +427,45 @@ function Highlighter()
 					}
 				}
 
-				break;
+				_HandleExpression(node.left);
+				_HandleExpression(node.right);
 
-			case "LogicalExpression":
 				break;
 
 			case "ConditionalExpression":
+				_HandleExpression(node.test);
+				_HandleExpression(node.alternate);
+				_HandleExpression(node.consequent);
 				break;
 
 			case "YieldExpression":
 				break;
 
 			case "AssignmentExpression":
+				{
+					// Color the operator in between
+					let startCol = node.left.loc.end.column;
+					let endCol = node.right.loc.start.column;
+					let line = _Lines[node.loc.start.line - 1];
+
+					// TODO handle multiline case
+					for(let i = startCol; i < endCol; i++)
+					{
+						let c = line[i];
+						c = colorChar(c, 5);
+						_Lines[node.loc.start.line - 1][i] = c;
+					}
+				}
+
 				_HandleExpression(node.left, 5);
 				_HandleExpression(node.right, 5);
 				break;
 
 			case "SequenceExpression":
+				node.expressions.forEach(function(el)
+					{
+						_HandleExpression(el);
+					});
 				break;
 
 			default:
