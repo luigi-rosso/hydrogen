@@ -7,6 +7,7 @@ function Document(_Hydrogen)
 	var _Lines = [];
 	var _MaxLineLength = 0;
 	var _NumTabSpaces = 4;
+    let _Highlighter = new Highlighter();
 
     // A Set for more performant lookups
     var _Keywords = new Set(
@@ -74,69 +75,15 @@ function Document(_Hydrogen)
 		{
 			_This.onContentsChange();
 		}
-
-        let highlighter = new Highlighter();
-        highlighter.process(_Lines);
-
-	}
+        
+        _RepaintLines();    
+    }
 
     function _RepaintLines()
     {
-
-        for(let i = 0; i < _Lines.length; i++)
-        {
-            let line = _Lines[i];
-            let wordsIdx = new Array();
-            let isNewWord = false;
-            for(let j = 0; j < line.length; j++)
-            {
-                let c = (line[j] << 11) >>> 11;
-
-                switch(true)
-                {
-                    case _CodePointsPunctuation.has(c):
-                        isNewWord = false;
-                        break;
-                    default:
-                        if(!isNewWord)
-                        {
-                            isNewWord = true;
-                            wordsIdx.push(j);
-                        }
-                        break;
-                }
-            }
-
-            let lineWords = [];
-
-            for(let wi = 0; wi < wordsIdx.length; wi++)
-            {
-                let col = wordsIdx[wi];
-                let word = String.fromCodePoint(line[col]);
-                let wordEndIdx = col + 1;
-                while(wordEndIdx < line.length && !_CodePointsPunctuation.has(line[wordEndIdx]) )
-                {
-                    word += String.fromCodePoint(line[wordEndIdx++]);
-                }
-
-                if(_Keywords.has(word)){
-                    // col is start offset, and wordEndIdx is end offset
-                    for(let w = col; w < wordEndIdx; w++)
-                    {
-                        let c = line[w];
-                        let colorIdx = 1 << 21;
-                        c = c ^ colorIdx;
-                        line[w] = c;
-                    }
-                }
-                
-                lineWords.push(word);
-                word.length = 0;
-            }
-
-            let doc = this;
-
-        }
+        start = Date.now();
+        _Highlighter.process(_Lines);
+        console.log("PAINTED IN:", Date.now() - start);
     }
 
     var _CodePointTab = 9;
@@ -144,6 +91,7 @@ function Document(_Hydrogen)
 
 	this.fromFile = _FromFile;
 	this.setContents = _SetContents;
+    this.repaintLines = _RepaintLines;
 	
     this.__defineGetter__("lines", function()
     {

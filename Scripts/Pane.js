@@ -41,6 +41,8 @@ function Pane(_Hydrogen)
 	var _IsDragging = false;
 	var _ChangeTimeout = null;
 
+	let _Highlighter = new Highlighter();
+
 	function _SetFont(font)
 	{
 		_Font = font;
@@ -96,6 +98,8 @@ function Pane(_Hydrogen)
     	_Document = new Document(_Hydrogen);
     	_Document.onContentsChange = function()
     	{
+    		let start = Date.now();
+    		let lines = _Document.lines;
     		clearTimeout(_ChangeTimeout);
     		_CaptureJournalEntry();
     		_Hydrogen.scheduleUpdate();
@@ -516,6 +520,7 @@ function Pane(_Hydrogen)
 			clearTimeout(_ChangeTimeout);
 			_ChangeTimeout = null;
 			_CaptureJournalEntry();
+			_Document.repaintLines();
 		}
 	}
 
