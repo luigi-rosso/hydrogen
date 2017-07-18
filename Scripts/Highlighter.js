@@ -207,7 +207,32 @@ function Highlighter()
 				colorWord(node.loc.start.line - 1, node.loc.start.column, "if", 3);
 				_HandleExpression(node.test);
 				_HandleNode(node.consequent);
-				if(node.alternate) _HandleNode(node.alternate);
+				
+				if(node.alternate) 
+				{
+					let startLine = node.consequent.loc.end.line - 1;
+					let startCol = node.consequent.loc.end.column;
+					let endLine = node.alternate.loc.start.line - 1;
+					let endCol = node.alternate.loc.start.column;
+
+					for(let i = startLine; i <= endLine; i++)
+					{
+						let line = _Lines[i];
+
+						// For multiline case
+						let start = (i == startLine) ? startCol : 0;
+						let stop = (i == endLine) ? endCol : line.length;
+						
+						for(let j = start; j < stop; j++)
+						{
+							let c = line[j];
+							c = colorChar(c, 3);
+							_Lines[i][j] = c;
+						}
+					}
+
+					_HandleNode(node.alternate);
+				}
 				break;
 
 			case "LabeledStatement":
