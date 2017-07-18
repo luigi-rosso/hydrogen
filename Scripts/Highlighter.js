@@ -13,7 +13,7 @@ OUTPUT:
 
 function Highlighter()
 {
-	let _CodePointsPunctuation = new Set([9, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
+	let _CodePointsPunctuation = new Set([33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
 	let _Acorn = window.acorn;
 	let _Lines;
 
@@ -23,6 +23,7 @@ function Highlighter()
 		_Lines = lines; // Store|Override the lines locally
 		
 		// Color punctuation
+		// TODO remove and integrate into Node Handling
 		for(let i = 0; i < _Lines.length; i++)
 		{
 			let line = _Lines[i];
@@ -121,7 +122,9 @@ function Highlighter()
 	function _HandleNode(node, colorIdx)
 	{
 		let curType = node.type;
-		console.log("GOING IN:", node.type, node.loc);
+		
+		// console.log("GOING IN:", node.type, node.loc);
+
 		switch(curType)
 		{
 			case "FunctionDeclaration":
@@ -429,7 +432,7 @@ function Highlighter()
 			    YieldExpression | AssignmentExpression | SequenceExpression;
 		*/
 		
-		console.log("GOING IN:", node.type, node.loc);
+		// console.log("GOING IN:", node.type, node.loc);
 
 		switch(node.type)
 		{
