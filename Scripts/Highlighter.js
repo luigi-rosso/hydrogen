@@ -43,7 +43,7 @@ function Highlighter()
 
 		try
 		{
-			let program = acorn.parse(text, {locations:true});
+			let program = acorn.parse_dammit(text, {locations:true});
 			_ParseTree(program);
 		}
 		catch(e)
