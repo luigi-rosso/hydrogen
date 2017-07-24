@@ -1,7 +1,6 @@
 function Highlighter()
 {
 	let _CurrentLanguage;
-	let longString = " This a superlong multiline String I'm not sure if this counts towards the understanding of anything";
 
 	let _RegExes = 
 	[
@@ -11,8 +10,8 @@ function Highlighter()
 			color: 4 // Intese Red.
 		},
 		{
-			name: "punctuation",
-			pattern: /[\[\]\|\.,\/#!$%\^&\*;:{}=\+\-`~()]/g,
+			name: "symbols",
+			pattern: /[\[\]\|\.,\/#!$%\^&\*;:{}=\+\-`~()><]/g,
 			color: 5 // Light Blue.
 		},
 		{
@@ -29,6 +28,37 @@ function Highlighter()
 			name: "simpleComment",
 			pattern: /\/\/.*\n?/g,
 			color: 6 // Brown.
+		},
+		{
+			name: "multilineComment",
+			pattern: /\/\*[\s\S]*\*\//g,
+			color: 6
+		},
+		{
+			name: "regex",
+			pattern: /\/(.+\/)([gimuy])?/g,
+			color: 3,
+			paint: function(match, line)
+			{
+				/* This match is made of two groups
+					1) regex
+					2) flag (optional)
+				*/
+				let i = match.index;
+				let endCol = match.index + match[1].length;
+				while(i <= endCol)
+				{
+					let c = line[i];
+					line[i] = colorChar(c, 3); // First group: Electric Blue.
+					i++;
+				}
+
+				if(match[2])
+				{
+					let c = line[i]; // i now points to the single char after group 1.
+					line[i] = colorChar(c, 7); // Second group: Purple.
+				}
+			}
 		}
 		
 		/* TODO:
@@ -48,8 +78,6 @@ function Highlighter()
 		}
 
 		let text = codePointsToText(lines);
-		// console.log("GOT TEXT:\n", text);
-
 
 		for(let re of _RegExes)
 		{		
@@ -58,24 +86,27 @@ function Highlighter()
 				let line = text[i];
 
 				let match = re.pattern.exec(line);
-				let col = 0; // Offset on the line.
 				while(match)
 				{
 					console.log("MATCH:", re.name, match, re.pattern.lastIndex);
-					
+					if(re.paint)
+					{
+						// let l = lines[i];
+						re.paint(match, lines[i]);
+						// lines[i] = t;
+					}
+					else 
 					for(let j = match.index; j < re.pattern.lastIndex; j++)
 					{
 						let c = lines[i][j];
 						lines[i][j] = colorChar(c, re.color);
 					}
 
-					col = re.pattern.lastIndex;
 					match = re.pattern.exec(line);
 				}
 			}
 		}
 		
-
 		return 0;
 	}
 
@@ -119,7 +150,6 @@ function Highlighter()
 
 		return c;
 	}
-
 
 	this.Paint = _Paint;
 }
