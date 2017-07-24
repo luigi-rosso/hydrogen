@@ -7,6 +7,7 @@ function Document(_Hydrogen)
 	var _Lines = [];
 	var _MaxLineLength = 0;
 	var _NumTabSpaces = 4;
+    let _Parser = new Parser();
     let _Highlighter = new Highlighter();
 
     // A Set for more performant lookups
@@ -82,7 +83,8 @@ function Document(_Hydrogen)
     function _RepaintLines()
     {
         start = Date.now();
-        _Highlighter.process(_Lines);
+        // _Parser.process(_Lines);
+        _Highlighter.Paint(_Lines);
         console.log("PAINTED IN:", Date.now() - start);
     }
 

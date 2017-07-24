@@ -41,8 +41,6 @@ function Pane(_Hydrogen)
 	var _IsDragging = false;
 	var _ChangeTimeout = null;
 
-	let _Highlighter = new Highlighter();
-
 	function _SetFont(font)
 	{
 		_Font = font;
