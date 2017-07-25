@@ -2,14 +2,14 @@ function Highlighter()
 {
 	let _CurrentLanguage;
 	let _Lines;
-	/* This is a test, remove */let _TextLines;
+	let _TextLines;
 
 	let _RegExes = 
 	[
 		{
 			name: "keywords",
 			pattern: /\b(as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|true|try|typeof|var|void|while|with|yield)\b/g,
-			color: 4 // Intese Red.
+			color: 7 // Purple.
 		},
 		{
 			name: "symbols",
@@ -164,7 +164,7 @@ function Highlighter()
 				let match = re.pattern.exec(line);
 				while(match)
 				{
-					console.log("MATCH:", re.name, match, re.pattern.lastIndex);
+					// console.log("MATCH:", re.name, match, re.pattern.lastIndex);
 					if(re.paint)
 					{
 						re.paint(match, i);
