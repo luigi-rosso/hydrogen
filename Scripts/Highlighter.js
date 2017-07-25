@@ -1,6 +1,8 @@
 function Highlighter()
 {
 	let _CurrentLanguage;
+	let _Lines;
+	/* This is a test, remove */let _TextLines;
 
 	let _RegExes = 
 	[
@@ -30,21 +32,16 @@ function Highlighter()
 			color: 6 // Brown.
 		},
 		{
-			name: "multilineComment",
-			pattern: /\/\*[\s\S]*\*\//g,
-			color: 6
-		},
-		{
 			name: "regex",
 			pattern: /\/(.+\/)([gimuy])?/g,
-			color: 3,
-			paint: function(match, line)
+			paint: function(match, lineNo)
 			{
 				/* This match is made of two groups
 					1) regex
 					2) flag (optional)
 				*/
 				let i = match.index;
+				let line = _Lines[lineNo];
 				let endCol = match.index + match[1].length;
 				while(i <= endCol)
 				{
@@ -61,10 +58,50 @@ function Highlighter()
 			}
 		},
 		{
+			name: "multilineComment",
+			pattern: /\/\*/g,
+			paint: function(match, lineNo)
+			{
+				let reClose = /\*\//g;
+				
+				let i = lineNo;
+				let j = match.index;
+
+				let intLine = _Lines[i];
+				let textLine = _TextLines[i];
+				
+				let closeMatch;
+				// If the closing pattern hasn't been found, paint the whole line brown and move onto the next
+				while((closeMatch = reClose.exec(textLine)) === null)
+				{
+					while(j < intLine.length)
+					{
+						let c = intLine[j];
+						intLine[j] = colorChar(c, 6);
+						j++;
+					}
+
+					j = 0;
+					i++; 
+					textLine = _TextLines[i];
+					intLine = _Lines[i];
+				}
+
+				// The pattern has closed, finish coloring
+				let endCol = closeMatch.index + 2;
+				while(j < endCol)
+				{
+					let c = intLine[j];
+					intLine[j] = colorChar(c, 6);
+					j++;
+				}
+			}
+		},
+		{
 			// Paint function name and args
 			name: "functionDefinition",
 			pattern: /function(\s*(\s\w+)?)\(((?:\s*\w*[,]?)*)\)/g,
-			paint: function(match, line)
+			paint: function(match, lineNo)
 			{
 				/* Groups:
 					1) padding before open parenthesis (incl. function name)
@@ -72,6 +109,7 @@ function Highlighter()
 					3) function args (optional) 
 				*/
 				let i = match.index + "function".length;
+				let line = _Lines[lineNo];
 				if(match[1])
 				{
 					let endCol = i + match[1].length;
@@ -101,13 +139,6 @@ function Highlighter()
 				}
 			}
 		}
-		
-		/* TODO:
-			- Functions
-				- Function arguments
-			- Comments
-			- RegEx	
-		*/
 	];
 
 	function _Paint(lines)
@@ -118,7 +149,11 @@ function Highlighter()
 			return;
 		}
 
+		
 		let text = codePointsToText(lines);
+		
+		_Lines = lines;
+		_TextLines = text;
 
 		for(let re of _RegExes)
 		{		
@@ -132,7 +167,7 @@ function Highlighter()
 					console.log("MATCH:", re.name, match, re.pattern.lastIndex);
 					if(re.paint)
 					{
-						re.paint(match, lines[i]);
+						re.paint(match, i);
 					}
 					else 
 					for(let j = match.index; j < re.pattern.lastIndex; j++)
