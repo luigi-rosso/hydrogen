@@ -59,6 +59,47 @@ function Highlighter()
 					line[i] = colorChar(c, 7); // Second group: Purple.
 				}
 			}
+		},
+		{
+			// Paint function name and args
+			name: "functionDefinition",
+			pattern: /function(\s*(\s\w+)?)\(((?:\s*\w*[,]?)*)\)/g,
+			paint: function(match, line)
+			{
+				/* Groups:
+					1) padding before open parenthesis (incl. function name)
+					2) function name
+					3) function args (optional) 
+				*/
+				let i = match.index + "function".length;
+				if(match[1])
+				{
+					let endCol = i + match[1].length;
+					while(i < endCol)
+					{
+						let c = line[i];
+						line[i] = colorChar(c, 5);
+						i++;
+					}
+				}
+
+				if(match[3])
+				{
+					endCol = i + match[3].length;
+					i++; // move over the parenthesis
+					while(i <= endCol)
+					{
+						let c = (line[i] << 11) >>> 11;
+						if(c === 44) // COMMA 
+						{
+							i++;
+							continue; 
+						}
+						line[i] = colorChar(c, 2);
+						i++;
+					}
+				}
+			}
 		}
 		
 		/* TODO:
@@ -91,9 +132,7 @@ function Highlighter()
 					console.log("MATCH:", re.name, match, re.pattern.lastIndex);
 					if(re.paint)
 					{
-						// let l = lines[i];
 						re.paint(match, lines[i]);
-						// lines[i] = t;
 					}
 					else 
 					for(let j = match.index; j < re.pattern.lastIndex; j++)
