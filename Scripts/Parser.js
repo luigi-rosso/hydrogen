@@ -11,40 +11,42 @@ OUTPUT:
 	Masked Uint32Arrays containing the Color Codes for each token in the document
 */
 
-function Parser()
+export default class Parser
 {
-	let _CodePointsPunctuation = new Set([33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
-	let _Acorn = window.acorn;
-	let _Lines;
-
-	this.process = _Process;
-	function _Process(lines)
+	constructor()
 	{
-		_Lines = lines; // Store|Override the lines locally
+		this._CodePointsPunctuation = new Set([33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
+		this._Acorn = window.acorn;
+		this._Lines;
+	}
+	
+	process(lines)
+	{
+		this._Lines = lines; // Store|Override the lines locally
 		
 		// Color punctuation
 		// TODO remove and integrate into Node Handling
-		for(let i = 0; i < _Lines.length; i++)
+		for(let i = 0; i < this._Lines.length; i++)
 		{
-			let line = _Lines[i];
+			let line = this._Lines[i];
 
 			for(let j = 0; j < line.length; j++)
 			{
-				let cp = _Lines[i][j];
+				let cp = this._Lines[i][j];
 				cp = (cp << 11) >>> 11; // Clean out older colors
-				if(_CodePointsPunctuation.has(cp))
+				if(this._CodePointsPunctuation.has(cp))
 				{
-					_Lines[i][j] = colorChar(cp, 5);
+					this._Lines[i][j] = this.colorChar(cp, 5);
 				}
 			}
 		}
 
-		let text = _ConvertCodePoints(lines);
+		let text = this._ConvertCodePoints(lines);
 
 		try
 		{
 			let program = acorn.parse_dammit(text, {locations:true});
-			_ParseTree(program);
+			this._ParseTree(program);
 		}
 		catch(e)
 		{
@@ -54,48 +56,48 @@ function Parser()
 		// Color Comments
 		let multilineComment = false;
 
-		for(let i = 0; i < _Lines.length; i++)
+		for(let i = 0; i < this._Lines.length; i++)
 		{
-			let line = _Lines[i];
+			let line = this._Lines[i];
 
 			for(let j = 0; j < line.length; j++)
 			{
-				let cp = _Lines[i][j];
+				let cp = this._Lines[i][j];
 				cp = (cp << 11) >>> 11; // Clean out older colors
 
 				if(multilineComment)
 				{
-					_Lines[i][j] = colorChar(cp, 6); // Color '*'
+					this._Lines[i][j] = this.colorChar(cp, 6); // Color '*'
 					if(cp === 42) // '*' character
 					{
-						let adj = _Lines[i][j+1];
+						let adj = this._Lines[i][j+1];
 						adj = (adj << 11) >>> 11;
 						if(adj === 47) // '/' character
 						{
 							multilineComment = false;
-							_Lines[i][j+1] = colorChar(adj, 6);	// Color '/'
+							this._Lines[i][j+1] = this.colorChar(adj, 6);	// Color '/'
 						}
 					}
 				}
 				else if(cp === 47) // '/' character
 				{
-					let adj = _Lines[i][j+1];
+					let adj = this._Lines[i][j+1];
 					adj = (adj << 11) >>> 11;
 					if(adj === 47)
 					{
 						// Single line comment, color rest of the line
 						while(j < line.length)
 						{
-							cp = _Lines[i][j];
+							cp = this._Lines[i][j];
 							cp = (cp << 11) >>> 11;
-							_Lines[i][j] = colorChar(cp, 6);
+							this._Lines[i][j] = this.colorChar(cp, 6);
 							j++;
 						}
 					}
 					else if(adj === 42) // '*' character
 					{
 						multilineComment = true;
-						_Lines[i][j] = colorChar(cp, 6); 	// Color '/'
+						this._Lines[i][j] = this.colorChar(cp, 6); 	// Color '/'
 					}
 					
 				}
@@ -104,7 +106,7 @@ function Parser()
 
 	}
 
-	function _ParseTree(tree)
+	_ParseTree(tree)
 	{
 		if(tree.body.length < 1 || tree.type !== "Program")
 		{
@@ -115,11 +117,11 @@ function Parser()
 		for(let i = 0; i < tree.body.length; i++)
 		{
 			let rootNode = tree.body[i];
-			_HandleNode(rootNode);
+			this._HandleNode(rootNode);
 		}
 	}
 
-	function _HandleNode(node, colorIdx)
+	_HandleNode(node, colorIdx)
 	{
 		let curType = node.type;
 		
@@ -128,49 +130,50 @@ function Parser()
 		switch(curType)
 		{
 			case "FunctionDeclaration":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "function", 3);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "function", 3);
 				
 				if(node.id)
 				{
-					_HandleNode(node.id, 5);
+					this._HandleNode(node.id, 5);
 				}
 
+				let self = this;
 				node.params.forEach(function(el)
 					{
-						_HandleNode(el, 1);
+						self._HandleNode(el, 1);
 					});
 				
 				let body = node.body; // BlockStatement || Expression
-				_HandleNode(body);
+				this._HandleNode(body);
 
 				break;
 			case "BlockStatement":
 				for(let i = 0; i < node.body.length; i++)
 				{
 					let s = node.body[i];
-					_HandleNode(s);
+					this._HandleNode(s);
 				}
 
 				break;
 
 			case "BreakStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "break", 4);
-				if(node.label) _HandleNode(node.label);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "break", 4);
+				if(node.label) this._HandleNode(node.label);
 				break;
 
 			case "ContinueStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "continue", 4);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "continue", 4);
 				
 				break;
 
 			case "DebuggerStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "debugger", 4);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "debugger", 4);
 				
 				break;
 
 			case "DoWhileStatement":
-				_HandleNode(node.body);
-				_HandleExpression(node.test);
+				this._HandleNode(node.body);
+				this._HandleExpression(node.test);
 
 				break;
 
@@ -179,37 +182,37 @@ function Parser()
 				break;
 
 			case "ExpressionStatement":
-				_HandleExpression(node.expression);
+				this._HandleExpression(node.expression);
 				break;
 			
 			case "ForStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "for", 3);
-				if(node.init) _HandleNode(node.init);
-				if(node.test) _HandleExpression(node.test);
-				if(node.update) _HandleExpression(node.update);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "for", 3);
+				if(node.init) this._HandleNode(node.init);
+				if(node.test) this._HandleExpression(node.test);
+				if(node.update) this._HandleExpression(node.update);
 
-				_HandleNode(node.body);
+				this._HandleNode(node.body);
 
 				break;
 
 			case "ForOfStatement":
 			case "ForInStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "for", 3);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "for", 3);
 
 				if(node.left.type === "VariableDeclaration")
-					_HandleNode(node.left);
+					this._HandleNode(node.left);
 				else
-					_HandleExpression(node.left);
+					this._HandleExpression(node.left);
 
-				_HandleExpression(node.right);
-				_HandleNode(node.body);
+				this._HandleExpression(node.right);
+				this._HandleNode(node.body);
 
 				break;
 
 			case "IfStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "if", 3);
-				_HandleExpression(node.test);
-				_HandleNode(node.consequent);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "if", 3);
+				this._HandleExpression(node.test);
+				this._HandleNode(node.consequent);
 				
 				if(node.alternate) 
 				{
@@ -220,7 +223,7 @@ function Parser()
 
 					for(let i = startLine; i <= endLine; i++)
 					{
-						let line = _Lines[i];
+						let line = this._Lines[i];
 
 						// For multiline case
 						let start = (i == startLine) ? startCol : 0;
@@ -229,126 +232,128 @@ function Parser()
 						for(let j = start; j < stop; j++)
 						{
 							let c = line[j];
-							c = colorChar(c, 3);
-							_Lines[i][j] = c;
+							c = this.colorChar(c, 3);
+							this._Lines[i][j] = c;
 						}
 					}
 
-					_HandleNode(node.alternate);
+					this._HandleNode(node.alternate);
 				}
 				break;
 
 			case "LabeledStatement":
-				_HandleNode(node.label);
-				_HandleNode(node.body);
+				this._HandleNode(node.label);
+				this._HandleNode(node.body);
 
 				break;
 
 			case "ReturnStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "return", 4);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "return", 4);
 				
-				if(node.argument) _HandleExpression(node.argument);
+				if(node.argument) this._HandleExpression(node.argument);
 				break;
 
 			case "SwitchStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "switch", 3);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "switch", 3);
 
-				_HandleExpression(node.discriminant);
+				this._HandleExpression(node.discriminant);
 				
+				let self = this;
 				node.cases.forEach(function(el)
 					{
-						_HandleNode(el);
+						self._HandleNode(el);
 					});
 				break;
 
 			case "SwitchCase":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "case", 3);
-				if(node.test) _HandleExpression(node.test);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "case", 3);
+				if(node.test) this._HandleExpression(node.test);
 
+				let self = this;
 				node.consequent.forEach(function(el)
 					{
-						_HandleNode(el);
+						self._HandleNode(el);
 					});
 
 				break;
 
 			case "ThrowStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "throw", 4);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "throw", 4);
 
-				_HandleExpression(node.argument);
+				this._HandleExpression(node.argument);
 
 				break;
 			
 			case "TryStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "try", 3);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "try", 3);
 
-				_HandleNode(node.block);
-				if(node.handler) _HandleNode(node.handler);
-				if(node.finalizer) _HandleNode(node.finalizer);
+				this._HandleNode(node.block);
+				if(node.handler) this._HandleNode(node.handler);
+				if(node.finalizer) this._HandleNode(node.finalizer);
 
 				break;
 
 			case "CatchClause":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "catch", 3);
-				_HandleExpression(node.param);
-				if(node.guard) _HandleExpression(node.guard);
-				_HandleNode(node.body);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "catch", 3);
+				this._HandleExpression(node.param);
+				if(node.guard) this._HandleExpression(node.guard);
+				this._HandleNode(node.body);
 
 				break;
 
 			case "VariableDeclaration":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, node.kind, 3);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, node.kind, 3);
 
 				for(let i = 0; i < node.declarations.length; i++)
 				{
 					let d = node.declarations[i];
-					_HandleNode(d);
+					this._HandleNode(d);
 				}	
 
 				break;
 
 			case "WhileStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "while", 3);
-				_HandleExpression(node.test);
-				_HandleNode(node.body);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "while", 3);
+				this._HandleExpression(node.test);
+				this._HandleNode(node.body);
 				break;
 
 			case "WithStatement":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "with", 3);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "with", 3);
 
-				_HandleExpression(node.object);
-				_HandleNode(node.body);
+				this._HandleExpression(node.object);
+				this._HandleNode(node.body);
 				break;
 
 
 			case "VariableDeclarator":
 				if(node.init)
 				{
-					_HandleExpression(node.init);
+					this._HandleExpression(node.init);
 				}
 
 				break;
 
 			case "Property":
-				_HandleNode(node.key);
-				_HandleExpression(node.value);
+				this._HandleNode(node.key);
+				this._HandleExpression(node.value);
 				// TODO node.kind coloring
 				break;
 
 			case "Identifier":
 				{
-					_HandleIdentifier(node, colorIdx);
+					this._HandleIdentifier(node, colorIdx);
 				}
 				break;
 			case "Literal":
-				_HandleLiteral(node);
+				this._HandleLiteral(node);
 				break;
 			default:
 				break;
 		}
 	}
 
-	function colorChar(c, index)
+	colorChar(c, index)
 	{
 		index = index || 0; // Make sure color is a value
 		c = (c << 11) >>> 11; // Clear old color mask
@@ -358,20 +363,20 @@ function Parser()
 		return c;
 	}
 
-	function colorWord(lineNo, colNo, word, color)
+	colorWord(lineNo, colNo, word, color)
 	{
-		let line = _Lines[lineNo];
+		let line = this._Lines[lineNo];
 		let endCol = colNo + word.length;
 
 		for(let i = colNo; i < endCol; i++)
 		{
 			let c = line[i];
-			c = colorChar(c, color);
-			_Lines[lineNo][i] = c;
+			c = this.colorChar(c, color);
+			this._Lines[lineNo][i] = c;
 		}
 	}
 
-	function _HandleIdentifier(identifier, color)
+	_HandleIdentifier(identifier, color)
 	{
 		let startLine = identifier.loc.start.line - 1; // Lines are 1-indexed.
 		let startCol = identifier.loc.start.column;
@@ -380,7 +385,7 @@ function Parser()
 
 		for(let i = startLine; i <= endLine; i++)
 		{
-			let line = _Lines[i];
+			let line = this._Lines[i];
 
 			// For multiline case
 			let start = (i == startLine) ? startCol : 0;
@@ -389,13 +394,13 @@ function Parser()
 			for(let j = start; j < stop; j++)
 			{
 				let c = line[j];
-				c = colorChar(c, color);
-				_Lines[i][j] = c;
+				c = this.colorChar(c, color);
+				this._Lines[i][j] = c;
 			}
 		}
 	}
 
-	function _HandleLiteral(node)
+	_HandleLiteral(node)
 	{
 		let startLine = node.loc.start.line - 1; // Lines are 1-indexed.
 		let endLine = node.loc.end.line - 1;
@@ -404,7 +409,7 @@ function Parser()
 
 		for(let i = startLine; i <= endLine; i++)
 		{
-			let line = _Lines[i];
+			let line = this._Lines[i];
 
 			// For multiline case
 			let start = (i == startLine) ? startCol : 0;
@@ -413,14 +418,14 @@ function Parser()
 			for(let j = start; j < stop; j++)
 			{
 				let c = line[j];
-				c = colorChar(c, 1);
-				_Lines[i][j] = c;
+				c = this.colorChar(c, 1);
+				this._Lines[i][j] = c;
 			}
 		}
 
 	}
 
-	function _HandleExpression(node, color)
+	_HandleExpression(node, color)
 	{
 		/*
 			Expression <=: 
@@ -437,50 +442,54 @@ function Parser()
 		switch(node.type)
 		{
 			case "ThisExpression":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "this", 4);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "this", 4);
 				break;
 
 			case "Identifier":
-				_HandleIdentifier(node, color);
+				this._HandleIdentifier(node, color);
 				break;
 
 			case "Literal":
-				_HandleLiteral(node);
+				this._HandleLiteral(node);
 				break;
 
 			case "ArrayExpression":
 				if(node.elements)
+				{
+					let self = this;
 					node.elements.forEach(function(el)
 						{
-							_HandleExpression(el);
+							self._HandleExpression(el);
 						});
+				}
 				break;
 
 			case "FunctionExpression":
 				if (node.id)
 				{
-					_HandleNode(node.id); // Identifier Node
+					this._HandleNode(node.id); // Identifier Node
 				}
 
-				
+				let self = this;
 				node.params.forEach(function(el)
 					{
-						_HandleNode(el);
+						self._HandleNode(el);
 					});
 
-				_HandleNode(node.body);
+				this._HandleNode(node.body);
 
 				break;
 			
 			case "ArrowFunctionExpression":
 				if(node.id)
 				{
-					_HandleExpression(node.id);
+					this._HandleExpression(node.id);
 				}
 
+				let self = this;
 				node.params.forEach(function(el)
 					{
-						_HandleNode(el);
+						self._HandleNode(el);
 					});
 
 				break;
@@ -489,21 +498,22 @@ function Parser()
 				// TODO color class keyword
 				if(node.id)
 				{
-					_HandleIdentifier(node.id);
+					this._HandleIdentifier(node.id);
 				}
 				
 				if(node.superClass)
 				{
-					_HandleIdentifier(node.superClass);
+					this._HandleIdentifier(node.superClass);
 				}
 
 				let classBody = node.body;
 
+				let self = this;
 				classBody.body.forEach(function(el)
 					{
 						// Each element is a Method Definition
-						if(el.key) _HandleExpression(el.key);
-						if(el.value) _HandleExpression(el.value);
+						if(el.key) self._HandleExpression(el.key);
+						if(el.value) self._HandleExpression(el.value);
 					});
 
 				break;
@@ -514,39 +524,41 @@ function Parser()
 
 			case "MemberExpression":
 				{
-					_HandleExpression(node.object);
+					this._HandleExpression(node.object);
 					let c = node.computed ? 0 : color;
-					_HandleExpression(node.property, c);
+					this._HandleExpression(node.property, c);
 				}
 				break;
 
 			case "Super":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "super", 4);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "super", 4);
 				break;
 
 			case "MetaProperty":
-				_HandleExpression(node.meta);
-				_HandleExpression(node.property);
+				this._HandleExpression(node.meta);
+				this._HandleExpression(node.property);
 
 				break;
 
 			case "NewExpression":
-				colorWord(node.loc.start.line - 1, node.loc.start.column, "new", 4);
+				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "new", 4);
 
-				_HandleExpression(node.callee, 2);
+				this._HandleExpression(node.callee, 2);
 
+				let self = this;
 				node.arguments.forEach(function(el)
 					{
-						_HandleExpression(el);
+						self._HandleExpression(el);
 					});
 
 				break;
 			case "CallExpression":
-				_HandleExpression(node.callee, 5);
+				this._HandleExpression(node.callee, 5);
 
+				let self = this;
 				node.arguments.forEach(function(el)
 					{
-						_HandleExpression(el);
+						self._HandleExpression(el);
 					});
 
 				break;
@@ -555,17 +567,17 @@ function Parser()
 			case "UpdateExpression":
 				if(node.prefix)
 				{
-					colorWord(node.loc.start.line - 1, node.loc.start.column, node.operator, 5);
+					this.colorWord(node.loc.start.line - 1, node.loc.start.column, node.operator, 5);
 				}
 				else
 				{
-					colorWord(node.loc.end.line - 1, node.loc.end.column - node.operator.length, node.operator, 5);
+					this.colorWord(node.loc.end.line - 1, node.loc.end.column - node.operator.length, node.operator, 5);
 				}
 
 				break;
 
 			case "AwaitExpression":
-			_HandleExpression(node.argument);
+			this._HandleExpression(node.argument);
 				break;
 
 			case "BinaryExpression":
@@ -574,34 +586,34 @@ function Parser()
 					// Color the operator in between
 					let startCol = node.left.loc.end.column;
 					let endCol = node.right.loc.start.column;
-					let line = _Lines[node.loc.start.line - 1];
+					let line = this._Lines[node.loc.start.line - 1];
 
 					// TODO handle multiline case
 					for(let i = startCol; i < endCol; i++)
 					{
 						let c = line[i];
-						c = colorChar(c, 5);
-						_Lines[node.loc.start.line - 1][i] = c;
+						c = this.colorChar(c, 5);
+						this._Lines[node.loc.start.line - 1][i] = c;
 					}
 				}
 
-				_HandleExpression(node.left);
-				_HandleExpression(node.right);
+				this._HandleExpression(node.left);
+				this._HandleExpression(node.right);
 
 				break;
 
 			case "ConditionalExpression":
-				_HandleExpression(node.test);
-				_HandleExpression(node.alternate);
-				_HandleExpression(node.consequent);
+				this._HandleExpression(node.test);
+				this._HandleExpression(node.alternate);
+				this._HandleExpression(node.consequent);
 				break;
 
 			case "YieldExpression":
 				if(node.argument)
-					_HandleExpression(node.argument);
+					this._HandleExpression(node.argument);
 				// TODO test color 'yield' keyword
 				/*
-				* colorWord(node.loc.start.line - 1, node.loc.start.column, "yield", 4);
+				* this.colorWord(node.loc.start.line - 1, node.loc.start.column, "yield", 4);
 				*/
 				break;
 
@@ -610,31 +622,32 @@ function Parser()
 					// Color the operator in between
 					let startCol = node.left.loc.end.column;
 					let endCol = node.right.loc.start.column;
-					let line = _Lines[node.loc.start.line - 1];
+					let line = this._Lines[node.loc.start.line - 1];
 
 					// TODO handle multiline case
 					for(let i = startCol; i < endCol; i++)
 					{
 						let c = line[i];
-						c = colorChar(c, 5);
-						_Lines[node.loc.start.line - 1][i] = c;
+						c = this.colorChar(c, 5);
+						this._Lines[node.loc.start.line - 1][i] = c;
 					}
 				}
 
-				_HandleExpression(node.left, 5);
-				_HandleExpression(node.right, 5);
+				this._HandleExpression(node.left, 5);
+				this._HandleExpression(node.right, 5);
 				break;
 
 			case "SequenceExpression":
+				let self = this;
 				node.expressions.forEach(function(el)
 					{
-						_HandleExpression(el);
+						self._HandleExpression(el);
 					});
 				break;
 
 			case "AssignmentPattern":
-				_HandleNode(node.left);
-				_HandleExpression(node.right);
+				this._HandleNode(node.left);
+				this._HandleExpression(node.right);
 				break;
 
 			case "ArrayPattern":
@@ -642,18 +655,20 @@ function Parser()
 				// BindingPattern = ArrayPattern | ObjectPattern
 				if(node.elements)
 				{
+					let self = this;
 					node.elements.forEach(function(el)
 						{
-							_HandleNode(el);
+							self._HandleNode(el);
 						});
 				}
 				break;
 
 			case "ObjectExpression":
 			case "ObjectPattern":
+				let self = this;
 				node.properties.forEach(function(el)
 					{
-						_HandleExpression(el);
+						self._HandleExpression(el);
 					});
 				break;
 
@@ -662,7 +677,7 @@ function Parser()
 		}
 	}
 
-	function _ConvertCodePoints(lines)
+	_ConvertCodePoints(lines)
 	{
 		let textLines = "";
 
