@@ -15,7 +15,7 @@ export default class Document
         this._MaxLineLength = 0;
         this._NumTabSpaces = 4;
         // this._Parser = new Parser();
-        // this._Highlighter = new Highlighter();
+        this._Highlighter = new Highlighter();
 
         // A Set for more performant lookups
         this._Keywords = new Set(
@@ -99,7 +99,7 @@ export default class Document
     {
         let start = Date.now();
         // _Parser.process(_Lines);
-        // this._Highlighter.Paint(this._Lines);
+        this._Highlighter.Paint(this._Lines);
         console.log("PAINTED IN:", Date.now() - start);
     }
 	
