@@ -1,54 +1,68 @@
-function Document(_Hydrogen)
+import bind from "bind";
+// import Parser from "./Parser.js";
+import Highlighter from "./Highlighter.js";
+
+export default class Document
 {
-    var _Acorn = window.acorn;
-	var _This = this;
-	var _LineBreak = '\n';
-	var _Tab = '\t';
-	var _Lines = [];
-	var _MaxLineLength = 0;
-	var _NumTabSpaces = 4;
-    let _Parser = new Parser();
-    let _Highlighter = new Highlighter();
+    constructor(pane, hydrogen)
+    {
+        this._Pane = pane;
+        this._Hydrogen = hydrogen;
+        this._Acorn = window.acorn;
+        this._LineBreak = '\n';
+        this._Tab = '\t';
+        this._Lines = [];
+        this._MaxLineLength = 0;
+        this._NumTabSpaces = 4;
+        // this._Parser = new Parser();
+        // this._Highlighter = new Highlighter();
 
-    // A Set for more performant lookups
-    var _Keywords = new Set(
-    [
-        "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", 
-        "do", "else", "export", "extends", "finally", "for", "function", "if", "import", "in", 
-        "instanceof", "new", "return", "super", "switch", "this", "throw", "try", "typeof", 
-        "var", "void", "while", "with", "yield",
-        "implements", "interface", "let", "package", "private", "protected", "public", "static"
-    ]);
+        // A Set for more performant lookups
+        this._Keywords = new Set(
+        [
+            "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", 
+            "do", "else", "export", "extends", "finally", "for", "function", "if", "import", "in", 
+            "instanceof", "new", "return", "super", "switch", "this", "throw", "try", "typeof", 
+            "var", "void", "while", "with", "yield",
+            "implements", "interface", "let", "package", "private", "protected", "public", "static"
+        ]);
 
-    var _CodePointsPunctuation = new Set([9, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
+        this._CodePointsPunctuation = new Set([9, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
 
-	function _FromFile(file)
+        this._CodePointTab = 9;
+        this._CodePointSpace = 32;
+    }
+    
+    @bind
+	fromFile(file)
 	{
-		var filename = file.name.toLowerCase();
-        var reader = new FileReader();
+		let filename = file.name.toLowerCase();
+        let reader = new FileReader();
+        let self = this;
         reader.onload = function(e) 
         {
-        	_SetContents(e.target.result);
+        	self.setContents(e.target.result);
         };
 
         reader.readAsText(file);
 	}
 
-	function _SetContents(text, silent)
+    @bind
+	setContents(text, silent)
 	{
-		var start = Date.now();
-		_Lines = [];
-		_MaxLineLength = 0;
-        let stringLines = text.split(_LineBreak);
+		let start = Date.now();
+		this._Lines = [];
+		this._MaxLineLength = 0;
+        let stringLines = text.split(this._LineBreak);
 
         // We build an array of Uint32 elements. Each element represents a single line of text in our file. Each character code associated with the UTF16 representation of the character.
-		_Lines = new Array(stringLines.length);
-		for(var i = 0; i < stringLines.length; i++)
+		this._Lines = new Array(stringLines.length);
+		for(let i = 0; i < stringLines.length; i++)
 		{
-			var stringLine = stringLines[i];
-			if(stringLine.length > _MaxLineLength)
+			let stringLine = stringLines[i];
+			if(stringLine.length > this._MaxLineLength)
 			{
-				_MaxLineLength = stringLine.length;
+				this._MaxLineLength = stringLine.length;
 			}    
 
             let line = new Uint32Array(stringLine.length);
@@ -62,61 +76,55 @@ function Document(_Hydrogen)
                 line[j] = val;
             }
 
-            _Lines[i] = line;
+            this._Lines[i] = line;
 
 		}
 
-        _RepaintLines();
+        this.repaintLines();
 
-		var end = Date.now();
+		let end = Date.now();
 
-		var elapsed = end-start;
+		let elapsed = end-start;
 		console.log("Document.parse took:", elapsed);
-		if(!silent && _This.onContentsChange)
+		if(!silent && /*this.onContentsChange*/ this._Pane)
 		{
-			_This.onContentsChange();
+			// this.onContentsChange();
+            this._Pane.onDocumentContentsChanged();
 		}
         
-        _RepaintLines();    
+        this.repaintLines();    
     }
 
-    function _RepaintLines()
+    repaintLines()
     {
-        start = Date.now();
+        let start = Date.now();
         // _Parser.process(_Lines);
-        _Highlighter.Paint(_Lines);
+        // this._Highlighter.Paint(this._Lines);
         console.log("PAINTED IN:", Date.now() - start);
     }
-
-    var _CodePointTab = 9;
-    var _CodePointSpace = 32;
-
-	this.fromFile = _FromFile;
-	this.setContents = _SetContents;
-    this.repaintLines = _RepaintLines;
 	
-    this.__defineGetter__("lines", function()
+    get lines()
     {
-        return _Lines;
-    });
+        return this._Lines;
+    }
 
-    this.__defineGetter__("numTabSpaces", function()
+    get numTabSpaces()
     {
-    	return _NumTabSpaces;
-    });
+    	return this._NumTabSpaces;
+    }
 
-    this.__defineGetter__("lineBreak", function()
+    get lineBreak()
     {
-        return _LineBreak;
-    });
+        return this._LineBreak;
+    }
 
-    this.__defineGetter__("text", function()
+    get text()
     {
         let result = "";
         
-        for(let i = 0; i < _Lines.length; i++)
+        for(let i = 0; i < this._Lines.length; i++)
         {
-            let line = _Lines[i];
+            let line = this._Lines[i];
             
             // let resultLine = String.fromCodePoint.apply(this, line.subarray(0));
 
@@ -128,39 +136,39 @@ function Document(_Hydrogen)
                 result += char;
             }
 
-            result += _LineBreak;
+            result += this._LineBreak;
         }
 
         return result;
-    });
+    }
 
-    this.__defineGetter__("tab", function()
+    get tab()
     {
-        return _Tab;
-    });
+        return this._Tab;
+    }
 
-    this.__defineGetter__("tabCode", function()
+    get tabCode()
     {
-        return _CodePointTab;
-    });
+        return this._CodePointTab;
+    }
     
-    this.__defineGetter__("keywords", function()
+    get keywords()
     {
-        return _Keywords;
-    });
+        return this._Keywords;
+    }
     
-    this.__defineSetter__("text", function(t)
+    set text(t)
     {
-    	_SetContents(t);
-    });
+    	this.setContents(t);
+    }
 
-    this.__defineGetter__("maxLineDigits", function()
+    get maxLineDigits()
     {
-        return _Lines.length.toString().length;
-    });
+        return this._Lines.length.toString().length;
+    }
 
-    this.__defineGetter__("maxLineLength", function()
+    get maxLineLength()
     {
-        return _MaxLineLength;
-    });
+        return this._MaxLineLength;
+    }
 }

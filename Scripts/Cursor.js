@@ -1,92 +1,91 @@
-function Cursor(data)
+export default class Cursor
 {
-	var _LineFrom = 0;
-	var _LineTo = 0;
-	var _ColumnFrom = 0;
-	var _ColumnTo = 0;
-    var _PlacedColumnMonoSpaces = 0;
-    var _AtEnd = false;
-
-    if(data)
+    constructor(data)
     {
-        _LineFrom = data.lineFrom;
-        _LineTo = data.lineTo;
-        _ColumnFrom = data.columnFrom;
-        _ColumnTo = data.columnTo;
-        _AtEnd = data.atEnd;
-        _PlacedColumnMonoSpaces = data.placedColumnMonoSpaces;
+        this._LineFrom = 0;
+        this._LineTo = 0;
+        this._ColumnFrom = 0;
+        this._ColumnTo = 0;
+        this._PlacedColumnMonoSpaces = 0;
+        this._AtEnd = false;
+
+        if(data)
+        {
+            this._LineFrom = data.lineFrom;
+            this._LineTo = data.lineTo;
+            this._ColumnFrom = data.columnFrom;
+            this._ColumnTo = data.columnTo;
+            this._AtEnd = data.atEnd;
+            this._PlacedColumnMonoSpaces = data.placedColumnMonoSpaces;
+        }
     }
 
-
-	this.__defineGetter__("hasRange", function()
+	get hasRange()
     {
-        return _LineFrom != _LineTo || _ColumnFrom != _ColumnTo;
-    });
+        return this._LineFrom != this._LineTo || this._ColumnFrom != this._ColumnTo;
+    }
 
-    this.__defineGetter__("lineFrom", function()
+    get lineFrom()
     {
-        return _LineFrom;
-    });
+        return this._LineFrom;
+    }
 
-    this.__defineGetter__("lineAt", function()
+    get lineAt()
     {
-        return _AtEnd ? _LineTo : _LineFrom;
-    });
+        return this._AtEnd ? this._LineTo : this._LineFrom;
+    }
 
-    this.__defineGetter__("atEnd", function()
+    get atEnd()
     {
-        return _AtEnd;
-    });
+        return this._AtEnd;
+    }
 
-
-    function _SetPlacedColumn(doc)
+    setPlacedColumn(doc)
     {
-        var lines = doc.lines;
-        if(_AtEnd)
+        let lines = doc.lines;
+        if(this._AtEnd)
         {
-            _PlacedColumnMonoSpaces = _GetRowMonoSpaces(lines[_LineTo], _ColumnTo, doc.numTabSpaces);
+            this._PlacedColumnMonoSpaces = this._GetRowMonoSpaces(lines[this._LineTo], this._ColumnTo, doc.numTabSpaces);
         }
         else
         {
-            _PlacedColumnMonoSpaces = _GetRowMonoSpaces(lines[_LineFrom], _ColumnFrom, doc.numTabSpaces);
+            this._PlacedColumnMonoSpaces = this._GetRowMonoSpaces(lines[this._LineFrom], this._ColumnFrom, doc.numTabSpaces);
         }        
-    };
+    }
 
-    this.setPlacedColumn = _SetPlacedColumn;
-
-    this.__defineGetter__("lineTo", function()
+    get lineTo()
     {
-        return _LineTo;
-    });
+        return this._LineTo;
+    }
 
-    this.__defineGetter__("columnFrom", function()
+    get columnFrom()
     {
-        return _ColumnFrom;
-    });
+        return this._ColumnFrom;
+    }
 
-    this.__defineGetter__("columnTo", function()
+    get columnTo()
     {
-        return _ColumnTo;
-    });
+        return this._ColumnTo;
+    }
 
-    this.__defineGetter__("line", function()
+    get line()
     {
-        return _AtEnd ? _LineTo : _LineFrom;
-    });
+        return this._AtEnd ? this._LineTo : this._LineFrom;
+    }
 
-    this.__defineGetter__("column", function()
+    get column()
     {
-        return _AtEnd ? _ColumnTo : _ColumnFrom;
-    });
+        return this._AtEnd ? this._ColumnTo : this._ColumnFrom;
+    }
 
-    this.place = function(line, column)
+    place(line, column)
     {
-    	_LineFrom = _LineTo = line;
-    	_ColumnFrom = _ColumnTo = column;
-    	_AtEnd = true;
-    };
+		this._LineFrom = this._LineTo = line;
+		this._ColumnFrom = this._ColumnTo = column;
+		this._AtEnd = true;
+    }
 
-    function _UnmaskChar(c)
+    _UnmaskChar(c)
     {
         // Last 11 bits in the mask represent the color.
         // By shifting and 0-filling the old positions we can retrieve the current char.
@@ -94,88 +93,90 @@ function Cursor(data)
         return codePoint;
     }
 
-    function _Serialize()
+    serialize()
     {
         return {
-            lineFrom:_LineFrom,
-            lineTo:_LineTo,
-            columnFrom:_ColumnFrom,
-            columnTo:_ColumnTo,
-            atEnd:_AtEnd,
-            placedColumnMonoSpaces:_PlacedColumnMonoSpaces
+            lineFrom:this._LineFrom,
+            lineTo:this._LineTo,
+            columnFrom:this._ColumnFrom,
+            columnTo:this._ColumnTo,
+            atEnd:this._AtEnd,
+            placedColumnMonoSpaces:this._PlacedColumnMonoSpaces
         };
-    };
+    }
 
-    function _SpanWord(doc)
+    spanWord(doc)
     {
-        var line = doc.lines[_LineFrom];
-        // var c = line.charCodeAt(_ColumnTo);
-        let c = line[_ColumnTo];
-        c = _UnmaskChar(c);
+        let line = doc.lines[this._LineFrom];
+        // let c = line.charCodeAt(this._ColumnTo);
+        let c = line[this._ColumnTo];
+        c = this._UnmaskChar(c);
 
-        if(_IsSpace(c))
+        if(this._IsSpace(c))
         {
-            _ColumnFrom = _FindFirstNonSpace(_ColumnTo, -1, line)+1;
-            _ColumnTo = _FindFirstNonSpace(_ColumnTo, 1, line);
+            this._ColumnFrom = this._FindFirstNonSpace(this._ColumnTo, -1, line)+1;
+            this._ColumnTo = this._FindFirstNonSpace(this._ColumnTo, 1, line);
         }
-        else if(_IsSymbol(c))
+        else if(this._IsSymbol(c))
         {
-            _ColumnFrom = _FindFirstNonSymbol(_ColumnTo, -1, line)+1;
-            _ColumnTo = _FindFirstNonSymbol(_ColumnTo, 1, line);
+            this._ColumnFrom = this._FindFirstNonSymbol(this._ColumnTo, -1, line)+1;
+            this._ColumnTo = this._FindFirstNonSymbol(this._ColumnTo, 1, line);
         }
         else
         {
-            _ColumnFrom = _FindNonWordCharacter(_ColumnTo, -1, line)+1;
-            _ColumnTo = _FindNonWordCharacter(_ColumnTo, 1, line);
+            this._ColumnFrom = this._FindNonWordCharacter(this._ColumnTo, -1, line)+1;
+            this._ColumnTo = this._FindNonWordCharacter(this._ColumnTo, 1, line);
         }
     }
 
-    function _Span(lineFrom, columnFrom, lineTo, columnTo, atEnd)
+    span(lineFrom, columnFrom, lineTo, columnTo, atEnd)
     {
-        var s = _Serialize();
-    	var fromIsHit = atEnd === undefined;
-    	if(fromIsHit)
-    	{
-    		_AtEnd = false;
-    	}
-    	else
-    	{
-    		_AtEnd = atEnd;	
-    	}
+        let s = this.serialize();
+		let fromIsHit = atEnd === undefined;
+		if(fromIsHit)
+		{
+			this._AtEnd = false;
+		}
+		else
+		{
+			this._AtEnd = atEnd;	
+		}
 
 
-    	_LineFrom = lineFrom;
-    	_LineTo = lineTo;
+		this._LineFrom = lineFrom;
+		this._LineTo = lineTo;
 
-    	_ColumnFrom = columnFrom;
-    	_ColumnTo = columnTo;
+		this._ColumnFrom = columnFrom;
+		this._ColumnTo = columnTo;
 
-    	if(_LineTo < _LineFrom)
-    	{
-    		var tmp = _LineFrom;
-    		_LineFrom = _LineTo;
-    		_LineTo = tmp;
+        let tmp;
 
-    		tmp = _ColumnFrom;
-    		_ColumnFrom = _ColumnTo;
-    		_ColumnTo = tmp;
+		if(this._LineTo < this._LineFrom)
+		{
+			tmp = this._LineFrom;
+			this._LineFrom = this._LineTo;
+			this._LineTo = tmp;
 
-    		// Selected upwards, move cursor to start.
-    		_AtEnd = !_AtEnd;
-    	}
-    	else if(_LineTo == _LineFrom && columnTo < columnFrom)
-    	{
-    		tmp = _ColumnFrom;
-    		_ColumnFrom = _ColumnTo;
-    		_ColumnTo = tmp;
+			tmp = this._ColumnFrom;
+			this._ColumnFrom = this._ColumnTo;
+			this._ColumnTo = tmp;
 
-    		// Went backwards on same line.
-    		_AtEnd = !_AtEnd;
-    	}
+			// Selected upwards, move cursor to start.
+			this._AtEnd = !this._AtEnd;
+		}
+		else if(this._LineTo == this._LineFrom && columnTo < columnFrom)
+		{
+			tmp = this._ColumnFrom;
+			this._ColumnFrom = this._ColumnTo;
+			this._ColumnTo = tmp;
 
-        var s2 = _Serialize();
+			// Went backwards on same line.
+			this._AtEnd = !this._AtEnd;
+		}
 
-        for(var k in s)
+        let s2 = this.serialize();
+
+        for(let k in s)
         {
             if(s[k] !== s2[k])
             {
@@ -185,13 +186,9 @@ function Cursor(data)
         }
         // same
         return false;
-    };
+    }
 
-    this.span = _Span;
-    this.spanWord = _SpanWord;
-    this.serialize = _Serialize;
-
-    this.clone = function(offsetLines, offsetColumns)
+    clone(offsetLines, offsetColumns)
     {
         if(!offsetLines)
         {
@@ -202,22 +199,22 @@ function Cursor(data)
             offsetColumns = 0;
         }
         return new Cursor({
-            lineFrom:_LineFrom+offsetLines,
-            lineTo:_LineTo+offsetLines,
-            columnFrom:_ColumnFrom+offsetColumns,
-            columnTo:_ColumnTo+offsetColumns,
-            atEnd:_AtEnd
+            lineFrom:this._LineFrom+offsetLines,
+            lineTo:this._LineTo+offsetLines,
+            columnFrom:this._ColumnFrom+offsetColumns,
+            columnTo:this._ColumnTo+offsetColumns,
+            atEnd:this._AtEnd
         });
-    };
+    }
 
-    function _GetRowMonoSpaces(line, x, numTabSpaces)
+    _GetRowMonoSpaces(line, x, numTabSpaces)
     {
-        var monoSpaces = 0;
-        for(var i = 0; i < x; i++)
+        let monoSpaces = 0;
+        for(let i = 0; i < x; i++)
         {
-            // var c = line.charCodeAt(i);
+            // let c = line.charCodeAt(i);
             let c = line[i];
-            c = _UnmaskChar(c);
+            c = this._UnmaskChar(c);
 
             switch(c)
             {
@@ -232,14 +229,14 @@ function Cursor(data)
         return monoSpaces;
     }
 
-    function _GetFirstEmptyColumn(line)
+    _GetFirstEmptyColumn(line)
     {
-        var ll = line.length;
-        for(var i = 0; i < ll; i++)
+        let ll = line.length;
+        for(let i = 0; i < ll; i++)
         {
-            // var c = line.charCodeAt(i);
+            // let c = line.charCodeAt(i);
             let c = line[i];
-            c = _UnmaskChar(c);
+            c = this._UnmaskChar(c);
 
             switch(c)
             {
@@ -248,21 +245,21 @@ function Cursor(data)
                     break;
                 default:
                     return i;
-                    break;
+                    // break;
             }
         }
         return 0;
     }
 
-    function _GetRowColumn(line, spaces, numTabSpaces)
+    _GetRowColumn(line, spaces, numTabSpaces)
     {
-        var monoSpaces = 0;
-        var ll = line.length;
-        for(var i = 0; i < ll; i++)
+        let monoSpaces = 0;
+        let ll = line.length;
+        for(let i = 0; i < ll; i++)
         {
-            // var c = line.charCodeAt(i);
+            // let c = line.charCodeAt(i);
             let c = line[i];
-            c = _UnmaskChar(c);
+            c = this._UnmaskChar(c);
 
             switch(c)
             {
@@ -282,22 +279,22 @@ function Cursor(data)
         return ll;
     }
 
-    function _IsSpace(c)
+    _IsSpace(c)
     {
-        c = _UnmaskChar(c);
+        c = this._UnmaskChar(c);
         switch(c)
         {
             case 9:
             case 32:
                 return true;
-                break;
+                // break;
         }
         return false;
     }
 
-    function _IsSymbol(c)
+    _IsSymbol(c)
     {
-        c = _UnmaskChar(c);
+        c = this._UnmaskChar(c);
 
         switch(c)
         {
@@ -350,16 +347,16 @@ function Cursor(data)
         }
     }
 
-    function _FindFirstNonSymbol(col, inc, line)
+    _FindFirstNonSymbol(col, inc, line)
     {
-        var end = inc > 0 ? line.length : -1;
-        for(var i = col; i != end; i+=inc)
+        let end = inc > 0 ? line.length : -1;
+        for(let i = col; i != end; i+=inc)
         {
-            // var c = line.charCodeAt(i);
+            // let c = line.charCodeAt(i);
             let c = line[i];
-            c = _UnmaskChar(c);
+            c = this._UnmaskChar(c);
             
-            if(_IsSymbol(c))
+            if(this._IsSymbol(c))
             {
                 continue;
             }
@@ -368,16 +365,16 @@ function Cursor(data)
         return end;
     }
 
-    function _FindNonWordCharacter(col, inc, line)
+    _FindNonWordCharacter(col, inc, line)
     {
-        var end = inc > 0 ? line.length : -1;
-        for(var i = col; i != end; i+=inc)
+        let end = inc > 0 ? line.length : -1;
+        for(let i = col; i != end; i+=inc)
         {
-            // var c = line.charCodeAt(i);
+            // let c = line.charCodeAt(i);
             let c = line[i];
-            c = _UnmaskChar(c);
+            c = this._UnmaskChar(c);
 
-            if(_IsSymbol(c))
+            if(this._IsSymbol(c))
             {
                 return i;
             }
@@ -392,14 +389,14 @@ function Cursor(data)
         return end;
     }
 
-    function _FindFirstNonSpace(col, inc, line)
+    _FindFirstNonSpace(col, inc, line)
     {
-        var end = inc > 0 ? line.length : -1;
-        for(var i = col; i != end; i+=inc)
+        let end = inc > 0 ? line.length : -1;
+        for(let i = col; i != end; i+=inc)
         {
-            // var c = line.charCodeAt(i);
+            // let c = line.charCodeAt(i);
             let c = line[i];
-            c = _UnmaskChar(c);
+            c = this._UnmaskChar(c);
 
             switch(c)
             {
@@ -413,20 +410,20 @@ function Cursor(data)
         return end;
     }
 
-    this.wordBoundary = function(inc, doc, span)
+    wordBoundary(inc, doc, span)
     {
-        var lines = doc.lines;
-        var line = lines[_AtEnd ? _LineTo : _LineFrom];
-        var col = _AtEnd ? _ColumnTo : _ColumnFrom;
+        let lines = doc.lines;
+        let line = lines[this._AtEnd ? this._LineTo : this._LineFrom];
+        let col = this._AtEnd ? this._ColumnTo : this._ColumnFrom;
 
         if(col === 0 && inc < 0)
         {
-            _Move(-1, 0, doc, span);
+            this.move(-1, 0, doc, span);
             return;
         }
         else if(col === line.length && inc > 0)
         {
-            _Move(1, 0, doc, span);
+            this.move(1, 0, doc, span);
             return;
         }
         if(inc === -1)
@@ -435,19 +432,19 @@ function Cursor(data)
         }
         
         let c = line[col];
-        c = _UnmaskChar(c);
+        c = this._UnmaskChar(c);
 
-        if(_IsSpace(c))
+        if(this._IsSpace(c))
         {
-            col = _FindFirstNonSpace(col, inc, line);
+            col = this._FindFirstNonSpace(col, inc, line);
         }
-        else if(_IsSymbol(c))
+        else if(this._IsSymbol(c))
         {
-            col = _FindFirstNonSymbol(col, inc, line);
+            col = this._FindFirstNonSymbol(col, inc, line);
         }
         else
         {
-            col = _FindNonWordCharacter(col, inc, line);
+            col = this._FindNonWordCharacter(col, inc, line);
         }
 
         if(inc === -1)
@@ -455,130 +452,130 @@ function Cursor(data)
             col++;
         }
 
-        if(_AtEnd)
+        if(this._AtEnd)
         {
-            var line = lines[_LineTo];
-            var colTo = col;
+            let line = lines[this._LineTo];
+            let colTo = col;
 
             if(span)
             {
-                _Span(_LineFrom, _ColumnFrom, _LineTo, colTo, _AtEnd);
+                this.span(this._LineFrom, this._ColumnFrom, this._LineTo, colTo, this._AtEnd);
             }
             else
             {
-                _LineFrom = _LineTo;
-                _ColumnFrom = _ColumnTo = colTo;
+                this._LineFrom = this._LineTo;
+                this._ColumnFrom = this._ColumnTo = colTo;
             }
         }
         else
         {
-            var line = lines[_LineFrom];
-            var colFrom = col;
+            let line = lines[this._LineFrom];
+            let colFrom = col;
             if(span)
             {
-                _Span(_LineFrom, colFrom, _LineTo, _ColumnTo, _AtEnd);
+                this.span(this._LineFrom, colFrom, this._LineTo, this._ColumnTo, this._AtEnd);
             }
             else
             {
-                _LineTo = _LineFrom;
-                _ColumnFrom = _ColumnTo = colFrom;
+                this._LineTo = this._LineFrom;
+                this._ColumnFrom = this._ColumnTo = colFrom;
             }
         }
-        _SetPlacedColumn(doc);
-    };
+        this.setPlacedColumn(doc);
+    }
 
-    this.home = function(doc, span)
+    home(doc, span)
     {
-        var lines = doc.lines;
+        let lines = doc.lines;
         
-        if(_AtEnd)
+        if(this._AtEnd)
         {
-            var line = lines[_LineTo];
-            var colTo = _GetFirstEmptyColumn(line);
-            if(colTo === _ColumnTo)
+            let line = lines[this._LineTo];
+            let colTo = this._GetFirstEmptyColumn(line);
+            if(colTo === this._ColumnTo)
             {
                 colTo = 0;
             }
             if(span)
             {
-                _Span(_LineFrom, _ColumnFrom, _LineTo, colTo, _AtEnd);
+                this.span(this._LineFrom, this._ColumnFrom, this._LineTo, colTo, this._AtEnd);
             }
             else
             {
-                _LineFrom = _LineTo;
-                _ColumnFrom = _ColumnTo = colTo;
+                this._LineFrom = this._LineTo;
+                this._ColumnFrom = this._ColumnTo = colTo;
             }
         }
         else
         {
-            var line = lines[_LineFrom];
-            var colFrom = _GetFirstEmptyColumn(line);
-            if(colFrom === _ColumnFrom)
+            let line = lines[this._LineFrom];
+            let colFrom = this._GetFirstEmptyColumn(line);
+            if(colFrom === this._ColumnFrom)
             {
                 colFrom = 0;
             }
             if(span)
             {
-                _Span(_LineFrom, colFrom, _LineTo, _ColumnTo, _AtEnd);
+                this.span(this._LineFrom, colFrom, this._LineTo, this._ColumnTo, this._AtEnd);
             }
             else
             {
-                _LineTo = _LineFrom;
-                _ColumnFrom = _ColumnTo = colFrom;
+                this._LineTo = this._LineFrom;
+                this._ColumnFrom = this._ColumnTo = colFrom;
             }
         }
-        _SetPlacedColumn(doc);
-    };
+        this.setPlacedColumn(doc);
+    }
 
-    function _MoveTo(x, y, doc, span)
+    moveTo(x, y, doc, span)
     {
-        var lines = doc.lines;
-        var maxY = lines.length-1;
+        let lines = doc.lines;
+        let maxY = lines.length-1;
 
         y = Math.min(maxY, Math.max(0, y));
         x = Math.min(lines[y].length, Math.max(0, x));
 
-        if(_AtEnd)
+        if(this._AtEnd)
         {
-            var line = lines[_LineTo];
+            let line = lines[this._LineTo];
             
             if(span)
             {
-                _Span(_LineFrom, _ColumnFrom, y, x, _AtEnd);
+                this.span(this._LineFrom, this._ColumnFrom, y, x, this._AtEnd);
             }
             else
             {
-                _LineFrom = _LineTo = y;
-                _ColumnFrom = _ColumnTo = x;
+                this._LineFrom = this._LineTo = y;
+                this._ColumnFrom = this._ColumnTo = x;
             }
         }
         else
         {
-            var line = lines[_LineFrom];
+            let line = lines[this._LineFrom];
             if(span)
             {
-                _Span(y, x, _LineTo, _ColumnTo, _AtEnd);
+                this.span(y, x, this._LineTo, this._ColumnTo, this._AtEnd);
             }
             else
             {
-                _LineTo = _LineFrom = y;
-                _ColumnFrom = _ColumnTo = x;
+                this._LineTo = this._LineFrom = y;
+                this._ColumnFrom = this._ColumnTo = x;
             }
         }
 
-        _SetPlacedColumn(doc);
+        this.setPlacedColumn(doc);
     }
 
-    function _Move(x, y, doc, span, noWrap)
+    move(x, y, doc, span, noWrap)
     {
-        var lines = doc.lines;
-        var maxY = lines.length-1;
-        var setPlaced = false;
-        if(_AtEnd)
+        let lines = doc.lines;
+        let maxY = lines.length-1;
+        let setPlaced = false;
+        if(this._AtEnd)
         {
-            var lineTo = Math.max(0, Math.min(maxY, _LineTo+y));
-            var maxX = lines[lineTo].length;
-            var colTo = _ColumnTo+x;//Math.max(0, Math.min(maxX, _ColumnTo+x));
+            let lineTo = Math.max(0, Math.min(maxY, this._LineTo+y));
+            let maxX = lines[lineTo].length;
+            let colTo = this._ColumnTo+x;//Math.max(0, Math.min(maxX, _ColumnTo+x));
             if(x !== 0)
             {
                 if(noWrap)
@@ -612,24 +609,24 @@ function Cursor(data)
             }
             else if(y !== 0)
             {
-                //var monoSpaces = _GetRowMonoSpaces(lines[_LineTo], _ColumnTo, doc.numTabSpaces);
-                colTo = _GetRowColumn(lines[lineTo], _PlacedColumnMonoSpaces, doc.numTabSpaces);
+                //let monoSpaces = _GetRowMonoSpaces(lines[_LineTo], _ColumnTo, doc.numTabSpaces);
+                colTo = this._GetRowColumn(lines[lineTo], this._PlacedColumnMonoSpaces, doc.numTabSpaces);
             }
             if(span)
             {
-                _Span(_LineFrom, _ColumnFrom, lineTo, colTo, _AtEnd);
+                this.span(this._LineFrom, this._ColumnFrom, lineTo, colTo, this._AtEnd);
             }
             else
             {
-                _LineFrom = _LineTo = lineTo;
-                _ColumnFrom = _ColumnTo = colTo;
+                this._LineFrom = this._LineTo = lineTo;
+                this._ColumnFrom = this._ColumnTo = colTo;
             }
         }
         else
         {
-            var lineFrom = Math.max(0, Math.min(maxY, _LineFrom+y));
-            var maxX = lines[lineFrom].length;
-            var colFrom = _ColumnFrom+x;
+            let lineFrom = Math.max(0, Math.min(maxY, this._LineFrom+y));
+            let maxX = lines[lineFrom].length;
+            let colFrom = this._ColumnFrom+x;
             if(x !== 0)
             {
                 if(noWrap)
@@ -655,26 +652,23 @@ function Cursor(data)
             }
             else if(y !== 0)
             {
-                //var monoSpaces = _GetRowMonoSpaces(lines[_LineFrom], _ColumnFrom, doc.numTabSpaces);
-                colFrom = _GetRowColumn(lines[lineFrom], _PlacedColumnMonoSpaces, doc.numTabSpaces);
+                //let monoSpaces = _GetRowMonoSpaces(lines[_LineFrom], this._ColumnFrom, doc.numTabSpaces);
+                colFrom = this._GetRowColumn(lines[lineFrom], this._PlacedColumnMonoSpaces, doc.numTabSpaces);
             }
             if(span)
             {
-                _Span(lineFrom, colFrom, _LineTo, _ColumnTo, _AtEnd);
+                this.span(lineFrom, colFrom, this._LineTo, this._ColumnTo, this._AtEnd);
             }
             else
             {
-                _LineFrom = _LineTo = lineFrom;
-                _ColumnFrom = _ColumnTo = colFrom;
+                this._LineFrom = this._LineTo = lineFrom;
+                this._ColumnFrom = this._ColumnTo = colFrom;
             }
         }
 
         if(setPlaced)
         {
-            _SetPlacedColumn(doc);
+            this.setPlacedColumn(doc);
         }
-    };
-
-    this.move = _Move;
-    this.moveTo = _MoveTo;
+    }
 }

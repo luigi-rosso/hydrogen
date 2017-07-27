@@ -1,66 +1,74 @@
-var Graphics = function (canvas)
+import bind from "bind";
+
+export default class Graphics
 {
-    var _This = this;
-    var _GL;
-    var _OrthoProjection;
-    var _FontWorldMatrix;
-    var _SpriteShader;
-    var _ColorShader;
-    var _RectVertexBuffer;
-    var _RectVertexData;
-
-    var _BoundShader;
-    var _BoundBuffer;
-
-    var _Color = new Float32Array(4);
-    var _DefaultColor = [ 1.0, 1.0, 1.0, 1.0 ];
-    var _LastColorIdx = 0;
-    var _ColorPalette = 
-    [
-        new Float32Array([1, 1, 1, 1.0]),           // 0) WHITE
-        new Float32Array([0.6, 0.98, 0.59, 1.0]),   // 1) LIGHT GREEN
-        new Float32Array([0.95, 0.69, 0.41, 1.0]),  // 2) LIGHT ORANGE
-        new Float32Array([0.12, 0.54, 0.91, 1.0]),  // 3) ELECTRIC BLUE
-        new Float32Array([0.97, 0.25, 0.25, 1.0]),  // 4) INTENSE RED
-        new Float32Array([0.66, 0.82, 0.96, 1.0]),  // 5) LIGHT BLUE
-        new Float32Array([0.55, 0.47, 0.44, 1.0]),   // 6) BROWN (FOR COMMENTS)
-        new Float32Array([0.78, 0.59, 0.97, 1.0])   // 7) PURPLE.
-    ];
-
-    var _ColorBuffer;
-    var _CurrentFont;
-    var _CurrentFontMap;
-    var _CurrentFontTexture;
-    var _CompiledShaders = {};
-
-    var _ViewportWidth;
-    var _ViewportHeight;
-    var _ViewportX;
-    var _ViewportY;
-
-    var _Clips = [];
-
-    try
+    constructor(canvas)
     {
-        var options =
+        this._Canvas = canvas;
+        this._GL;
+        this._OrthoProjection;
+        this._FontWorldMatrix;
+        this._SpriteShader;
+        this._ColorShader;
+        this._RectVertexBuffer;
+        this._RectVertexData;
+
+        this._BoundShader;
+        this._BoundBuffer;
+
+        this._Color = new Float32Array(4);
+        this._DefaultColor = [ 1.0, 1.0, 1.0, 1.0 ];
+        this._LastColorIdx = 0;
+        this._ColorPalette = 
+        [
+            new Float32Array([1, 1, 1, 1.0]),           // 0) WHITE
+            new Float32Array([0.6, 0.98, 0.59, 1.0]),   // 1) LIGHT GREEN
+            new Float32Array([0.95, 0.69, 0.41, 1.0]),  // 2) LIGHT ORANGE
+            new Float32Array([0.12, 0.54, 0.91, 1.0]),  // 3) ELECTRIC BLUE
+            new Float32Array([0.97, 0.25, 0.25, 1.0]),  // 4) INTENSE RED
+            new Float32Array([0.66, 0.82, 0.96, 1.0]),  // 5) LIGHT BLUE
+            new Float32Array([0.55, 0.47, 0.44, 1.0]),   // 6) BROWN (FOR COMMENTS)
+            new Float32Array([0.78, 0.59, 0.97, 1.0])   // 7) PURPLE.
+        ];
+
+        this._ColorBuffer;
+        this._CurrentFont;
+        this._CurrentFontMap;
+        this._CurrentFontTexture;
+        this._CompiledShaders = {};
+
+        this._ViewportWidth;
+        this._ViewportHeight;
+        this._ViewportX;
+        this._ViewportY;
+
+        this._Clips = [];
+
+        try
         {
-            premultipliedAlpha: false,
-            preserveDrawingBuffer: true
-        };
-        _GL = canvas.getContext("webgl", options) || canvas.getContext("experimental-webgl", options);
+            let options =
+            {
+                premultipliedAlpha: false,
+                preserveDrawingBuffer: true
+            };
+            this._GL = canvas.getContext("webgl", options) || canvas.getContext("experimental-webgl", options);
 
+        }
+        catch (e)
+        {
+        }
+
+        this._TabSpaces = 4;
     }
-    catch (e)
-    {
-    }
 
-    _Initialize = function()
+    @bind
+    init()
     {
-        _OrthoProjection = mat4.create();
-        _FontWorldMatrix = mat4.create();
-        _ColorBuffer = new Float32Array(_DefaultColor);
+        this._OrthoProjection = mat4.create();
+        this._FontWorldMatrix = mat4.create();
+        this._ColorBuffer = new Float32Array(this._DefaultColor);
 
-        if(!(_SpriteShader = _InitializeShader(
+        if(!(this._SpriteShader = this._InitializeShader(
         {
             Name: "SpriteShader",
 
@@ -98,7 +106,7 @@ var Graphics = function (canvas)
             return false;
         }
 
-        if(!(_ColorShader = _InitializeShader(
+        if(!(this._ColorShader = this._InitializeShader(
         {
             Name: "Color",
 
@@ -128,9 +136,9 @@ var Graphics = function (canvas)
             return false;
         }
 
-        _RectVertexBuffer = _GL.createBuffer();
-        _GL.bindBuffer(_GL.ARRAY_BUFFER, _RectVertexBuffer);
-        _GL.bufferData(_GL.ARRAY_BUFFER, (_RectVertexData=new Float32Array([
+        this._RectVertexBuffer = this._GL.createBuffer();
+        this._GL.bindBuffer(this._GL.ARRAY_BUFFER, this._RectVertexBuffer);
+        this._GL.bufferData(this._GL.ARRAY_BUFFER, (this._RectVertexData=new Float32Array([
             0, 1,
             0, 1,
 
@@ -142,14 +150,14 @@ var Graphics = function (canvas)
 
             1, 0,
             1, 0
-        ])), _GL.DYNAMIC_DRAW);
+        ])), this._GL.DYNAMIC_DRAW);
 
         return true;
     };
 
-    var _GetShader = function(id)
+    _GetShader(id)
     {
-        var s = _CompiledShaders[id];
+        var s = this._CompiledShaders[id];
         if(s)
         {
             return s;
@@ -173,124 +181,128 @@ var Graphics = function (canvas)
         var shader;
         if (shaderScript.type == "x-shader/x-fragment") 
         {
-            shader = _GL.createShader(_GL.FRAGMENT_SHADER);
+            shader = this._GL.createShader(this._GL.FRAGMENT_SHADER);
         } 
         else if (shaderScript.type == "x-shader/x-vertex") 
         {
-            shader = _GL.createShader(_GL.VERTEX_SHADER);
+            shader = this._GL.createShader(this._GL.VERTEX_SHADER);
         } 
         else
         {
             return null;
         }
 
-        _GL.shaderSource(shader, str);
-        _GL.compileShader(shader);
+        this._GL.shaderSource(shader, str);
+        this._GL.compileShader(shader);
 
-        if (!_GL.getShaderParameter(shader, _GL.COMPILE_STATUS)) 
+        if (!this._GL.getShaderParameter(shader, this._GL.COMPILE_STATUS)) 
         {
-          console.log(id, _GL.getShaderInfoLog(shader));
+          console.log(id, this._GL.getShaderInfoLog(shader));
           return null;
         }
 
-        _CompiledShaders[id] = shader;
+        this._CompiledShaders[id] = shader;
 
         return shader;
-    };
+    }
 
-    var _InitializeShader = function(s)
+    _InitializeShader(s)
     {
-        s.Fragment = _GetShader(s.Fragment, _GL.FRAGMENT_SHADER);
-        s.Vertex = _GetShader(s.Vertex, _GL.VERTEX_SHADER);
-        s.Program = _GL.createProgram();
+        s.Fragment = this._GetShader(s.Fragment, this._GL.FRAGMENT_SHADER);
+        s.Vertex = this._GetShader(s.Vertex, this._GL.VERTEX_SHADER);
+        s.Program = this._GL.createProgram();
 
-        _GL.attachShader(s.Program, s.Vertex);
-        _GL.attachShader(s.Program, s.Fragment);
-        _GL.linkProgram(s.Program);
+        this._GL.attachShader(s.Program, s.Vertex);
+        this._GL.attachShader(s.Program, s.Fragment);
+        this._GL.linkProgram(s.Program);
 
-        if(!_GL.getProgramParameter(s.Program, _GL.LINK_STATUS))
+        if(!this._GL.getProgramParameter(s.Program, this._GL.LINK_STATUS))
         {
-            console.log("Could not link shader", s.Name, _GL.getProgramInfoLog(s.Program));
+            console.log("Could not link shader", s.Name, this._GL.getProgramInfoLog(s.Program));
             return false;
         }
 
-        _GL.useProgram(s.Program);
+        this._GL.useProgram(s.Program);
 
-        for(var a in s.Attributes)
+        for(let a in s.Attributes)
         {
-            if((s.Attributes[a].Index = _GL.getAttribLocation(s.Program, s.Attributes[a].Name)) == -1)
+            if((s.Attributes[a].Index = this._GL.getAttribLocation(s.Program, s.Attributes[a].Name)) == -1)
             {
                 console.log("Could not find attribute", s.Attributes[a].Name, " for shader ", s.Name);
             }
         }
-        for(var u in s.Uniforms)
+        for(let u in s.Uniforms)
         {
-            var name = s.Uniforms[u];
-            if((s.Uniforms[u] = _GL.getUniformLocation(s.Program, name)) == null)
+            let name = s.Uniforms[u];
+            if((s.Uniforms[u] = this._GL.getUniformLocation(s.Program, name)) == null)
             {
                 console.log("Could not find uniform", name, "for shader", s.Name);
             }
         }
         
         return s;
-    };
+    }
 
-    var _EnableDepthTest = function()
+    @bind
+    enableDepthTest()
     {
-        _GL.enable(_GL.DEPTH_TEST);
-    };
+        this._GL.enable(this._GL.DEPTH_TEST);
+    }
 
-    var _DisableDepthTest = function()
+    @bind
+    disableDepthTest()
     {
-        _GL.disable(_GL.DEPTH_TEST);
-    };
+        this._GL.disable(this._GL.DEPTH_TEST);
+    }
 
-    var _EnableBlending = function()
+    @bind
+    enableBlending()
     {
-        _GL.enable(_GL.BLEND);
-        _GL.blendFuncSeparate(_GL.SRC_ALPHA, _GL.ONE_MINUS_SRC_ALPHA, _GL.ONE, _GL.ONE_MINUS_SRC_ALPHA);
-    };
+        this._GL.enable(this._GL.BLEND);
+        this._GL.blendFuncSeparate(this._GL.SRC_ALPHA, this._GL.ONE_MINUS_SRC_ALPHA, this._GL.ONE, this._GL.ONE_MINUS_SRC_ALPHA);
+    }
 
-    var _DisableBlending = function()
+    @bind
+    disableBlending()
     {
-        _GL.disable(_GL.BLEND);
-    };
+        this._GL.disable(this._GL.BLEND);
+    }
 
-    var _Bind = function(shader, buffer)
+    _Bind(shader, buffer)
     {
-        if(_BoundShader == shader && _BoundBuffer == buffer)
+        if(this._BoundShader == shader && this._BoundBuffer == buffer)
         {
             return;
         }
 
         // Disable anything necessary for the old shader.
-        if(_BoundShader)
+        if(this._BoundShader)
         {
-            for(var a in _BoundShader.Attributes)
+            for(var a in this._BoundShader.Attributes)
             {
-                var at = _BoundShader.Attributes[a];
+                var at = this._BoundShader.Attributes[a];
                 if(at.Index != -1)
                 {
-                    _GL.disableVertexAttribArray(at.Index);
+                    this._GL.disableVertexAttribArray(at.Index);
                 }
             }
         }
 
         if(shader == null)
         {
-            _BoundShader = null;
-            _BoundBuffer = null;
-            _GL.useProgram(null);
+            this._BoundShader = null;
+            this._BoundBuffer = null;
+            this._GL.useProgram(null);
             return;
         }
 
         // Bind the new one.
-        _GL.useProgram(shader.Program);
+        this._GL.useProgram(shader.Program);
 
-        _BoundShader = shader;
-        _BoundBuffer = buffer;
+        this._BoundShader = shader;
+        this._BoundBuffer = buffer;
 
-        _GL.bindBuffer(_GL.ARRAY_BUFFER, _BoundBuffer);
+        this._GL.bindBuffer(this._GL.ARRAY_BUFFER, this._BoundBuffer);
 
         for(var a in shader.Attributes)
         {
@@ -298,57 +310,59 @@ var Graphics = function (canvas)
 
             if(at.Index != -1)
             {
-                _GL.enableVertexAttribArray(at.Index);
-                _GL.vertexAttribPointer(at.Index, at.Size, _GL.FLOAT, false, at.Stride, at.Offset); 
+                this._GL.enableVertexAttribArray(at.Index);
+                this._GL.vertexAttribPointer(at.Index, at.Size, this._GL.FLOAT, false, at.Stride, at.Offset); 
             }
         }
-    };
+    }
 
 
-    this.setViewport = function(x, y, width, height)//, isOrtho)
+    setViewport(x, y, width, height)//, isOrtho)
     {
-        _ViewportX = x;
-        _ViewportY = y;
-        _ViewportWidth = width;
-        _ViewportHeight = height;
+        this._ViewportX = x;
+        this._ViewportY = y;
+        this._ViewportWidth = width;
+        this._ViewportHeight = height;
 
-        _GL.viewport(_ViewportX, _ViewportY, _ViewportWidth, _ViewportHeight);
-        mat4.ortho(_OrthoProjection, 0, _ViewportWidth, _ViewportHeight, 0, 0, 1);
-    };
+        this._GL.viewport(this._ViewportX, this._ViewportY, this._ViewportWidth, this._ViewportHeight);
+        mat4.ortho(this._OrthoProjection, 0, this._ViewportWidth, this._ViewportHeight, 0, 0, 1);
+    }
 
-    this.__defineGetter__("viewportX", function()
+    get viewportX()
     {
-        return _ViewportX;
-    });
+        return this._ViewportX;
+    }
 
-    this.__defineGetter__("viewportY", function()
+    get viewportY()
     {
-        return _ViewportY;
-    });
+        return this._ViewportY;
+    }
 
-    this.__defineGetter__("viewportWidth", function()
+    get viewportWidth()
     {
-        return _ViewportWidth;
-    });
+        return this._ViewportWidth;
+    }
 
-    this.__defineGetter__("viewportHeight", function()
+    viewportHeight()
     {
-        return _ViewportHeight;
-    });
+        return this._ViewportHeight;
+    }
 
-    var _Clear = function(color)
+    @bind
+    clear(color)
     {
-        _GL.clearColor(color[0], color[1], color[2], color[3]);
-        _GL.disable(_GL.DEPTH_TEST);
-        _GL.clear(_GL.COLOR_BUFFER_BIT);
-        _GL.depthMask(false);
-        _GL.enable(_GL.BLEND);
-        _GL.blendFuncSeparate(_GL.SRC_ALPHA, _GL.ONE_MINUS_SRC_ALPHA, _GL.ONE, _GL.ONE_MINUS_SRC_ALPHA);
+        this._GL.clearColor(color[0], color[1], color[2], color[3]);
+        this._GL.disable(this._GL.DEPTH_TEST);
+        this._GL.clear(this._GL.COLOR_BUFFER_BIT);
+        this._GL.depthMask(false);
+        this._GL.enable(this._GL.BLEND);
+        this._GL.blendFuncSeparate(this._GL.SRC_ALPHA, this._GL.ONE_MINUS_SRC_ALPHA, this._GL.ONE, this._GL.ONE_MINUS_SRC_ALPHA);
 
-        _GL.viewport(_ViewportX, _ViewportY, _ViewportWidth, _ViewportHeight);
-    };
+        this._GL.viewport(this._ViewportX, this._ViewportY, this._ViewportWidth, this._ViewportHeight);
+    }
 
-    var _SetFont = function(font, opacity, color)
+    @bind
+    setFont(font, opacity, color)
     {
         if(!font.isReady)
         {
@@ -363,14 +377,14 @@ var Graphics = function (canvas)
 
         if(!color) 
         {
-            color = _DefaultColor;
+            color = this._DefaultColor;
         }
 
-        for(var i = 0; i < 4; i++) _ColorBuffer[i] = color[i];
+        for(var i = 0; i < 4; i++) this._ColorBuffer[i] = color[i];
 
-        var shader = _SpriteShader;
-        _CurrentFont = font;
-        _CurrentFontMap = font.map;
+        var shader = this._SpriteShader;
+        this._CurrentFont = font;
+        this._CurrentFontMap = font.map;
 
         if(!font.vertexBuffer)
         {
@@ -414,9 +428,9 @@ var Graphics = function (canvas)
                 //console.log(glyph.v + glyph.vs, glyph.u + glyph.us, glyph.w, glyph.h);
             }
 
-            font.vertexBuffer = _GL.createBuffer();
-            _GL.bindBuffer(_GL.ARRAY_BUFFER, font.vertexBuffer);
-            _GL.bufferData(_GL.ARRAY_BUFFER, vertices, _GL.STATIC_DRAW);
+            font.vertexBuffer = this._GL.createBuffer();
+            this._GL.bindBuffer(this._GL.ARRAY_BUFFER, font.vertexBuffer);
+            this._GL.bufferData(this._GL.ARRAY_BUFFER, vertices, this._GL.STATIC_DRAW);
         }
         if(!font.textures)
         {
@@ -424,42 +438,42 @@ var Graphics = function (canvas)
             for(var i = 0; i < font.bitmaps.length; i++)
             {
                 var bitmap = font.bitmaps[i];
-                var texture = _GL.createTexture();
+                var texture = this._GL.createTexture();
 
-                _GL.bindTexture(_GL.TEXTURE_2D, texture);
+                this._GL.bindTexture(this._GL.TEXTURE_2D, texture);
 
-                _GL.pixelStorei(_GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+                this._GL.pixelStorei(this._GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
                 
-                //_GL.pixelStorei(_GL.UNPACK_ALIGNMENT, 1);
-                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MAG_FILTER, _GL.NEAREST);
-                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_MIN_FILTER, _GL.NEAREST);
-                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_WRAP_S, _GL.CLAMP_TO_EDGE);
-                _GL.texParameteri(_GL.TEXTURE_2D, _GL.TEXTURE_WRAP_T, _GL.CLAMP_TO_EDGE);
+                //this._GL.pixelStorei(this._GL.UNPACK_ALIGNMENT, 1);
+                this._GL.texParameteri(this._GL.TEXTURE_2D, this._GL.TEXTURE_MAG_FILTER, this._GL.NEAREST);
+                this._GL.texParameteri(this._GL.TEXTURE_2D, this._GL.TEXTURE_MIN_FILTER, this._GL.NEAREST);
+                this._GL.texParameteri(this._GL.TEXTURE_2D, this._GL.TEXTURE_WRAP_S, this._GL.CLAMP_TO_EDGE);
+                this._GL.texParameteri(this._GL.TEXTURE_2D, this._GL.TEXTURE_WRAP_T, this._GL.CLAMP_TO_EDGE);
 
-                _GL.texImage2D(_GL.TEXTURE_2D, 0, _GL.ALPHA, bitmap.w, bitmap.h, 0, _GL.ALPHA, _GL.UNSIGNED_BYTE, bitmap.buffer);
+                this._GL.texImage2D(this._GL.TEXTURE_2D, 0, this._GL.ALPHA, bitmap.w, bitmap.h, 0, this._GL.ALPHA, this._GL.UNSIGNED_BYTE, bitmap.buffer);
 
                 font.textures[i] = texture;
             }
         }
 
-        _Bind(shader, font.vertexBuffer);
+        this._Bind(shader, font.vertexBuffer);
 
-        _GL.uniformMatrix4fv(shader.Uniforms.ProjectionMatrix, false, _OrthoProjection);
-        _GL.uniformMatrix4fv(shader.Uniforms.WorldMatrix, false, _FontWorldMatrix);   
+        this._GL.uniformMatrix4fv(shader.Uniforms.ProjectionMatrix, false, this._OrthoProjection);
+        this._GL.uniformMatrix4fv(shader.Uniforms.WorldMatrix, false, this._FontWorldMatrix);   
 
-        _CurrentFontTexture = -1;
+        this._CurrentFontTexture = -1;
         //_GL.activeTexture(_GL.TEXTURE0);
         //_GL.bindTexture(_GL.TEXTURE_2D, font.texture);
         //_GL.uniform1i(shader.Uniforms.TextureSampler, 0);
 
-        _GL.uniform1f(shader.Uniforms.Opacity, opacity);  
-        _GL.uniform4fv(shader.Uniforms.Color, _ColorBuffer);
+        this._GL.uniform1f(shader.Uniforms.Opacity, opacity);  
+        this._GL.uniform4fv(shader.Uniforms.Color, this._ColorBuffer);
 
         return true;
-    };
+    }
 
-    var _TabSpaces = 4;
-    var _DrawText = function(x, y, t, offset, lastChar)
+    @bind
+    drawText(x, y, t, offset, lastChar)
     {
         //x = Math.round(x);
         //y = Math.round(y);
@@ -499,10 +513,10 @@ var Graphics = function (canvas)
                     break;
             }
 
-            var g = _CurrentFontMap[c];
+            var g = this._CurrentFontMap[c];
             if(!g)
             {
-                g = _CurrentFontMap[0];
+                g = this._CurrentFontMap[0];
             }
             
             /*if(p)
@@ -515,29 +529,29 @@ var Graphics = function (canvas)
             }*/
             if(g.bufferIndex !== -1)
             {
-                if(colorIdx != _LastColorIdx)
+                if(colorIdx != this._LastColorIdx)
                 {
-                    _LastColorIdx = colorIdx;
-                    _GL.uniform4fv(_SpriteShader.Uniforms.Color, _ColorPalette[colorIdx]);
+                    this._LastColorIdx = colorIdx;
+                    this._GL.uniform4fv(this._SpriteShader.Uniforms.Color, this._ColorPalette[colorIdx]);
                 }
 
-                if(g.ti != _CurrentFontTexture)
+                if(g.ti != this._CurrentFontTexture)
                 {
-                    _CurrentFontTexture = g.ti;
+                    this._CurrentFontTexture = g.ti;
 
-                    _GL.activeTexture(_GL.TEXTURE0);
-                    _GL.bindTexture(_GL.TEXTURE_2D, _CurrentFont.textures[g.ti]);
-                    _GL.uniform1i(_SpriteShader.Uniforms.TextureSampler, 0);
+                    this._GL.activeTexture(this._GL.TEXTURE0);
+                    this._GL.bindTexture(this._GL.TEXTURE_2D, this._CurrentFont.textures[g.ti]);
+                    this._GL.uniform1i(this._SpriteShader.Uniforms.TextureSampler, 0);
                 }
-                _FontWorldMatrix[12] = x + g.hbx;
-                _FontWorldMatrix[13] = y - g.hby;
-                _GL.uniformMatrix4fv(_SpriteShader.Uniforms.WorldMatrix, false, _FontWorldMatrix);
+                this._FontWorldMatrix[12] = x + g.hbx;
+                this._FontWorldMatrix[13] = y - g.hby;
+                this._GL.uniformMatrix4fv(this._SpriteShader.Uniforms.WorldMatrix, false, this._FontWorldMatrix);
                 
-                _GL.drawArrays(_GL.TRIANGLE_STRIP, g.bufferIndex*4, 4);
+                this._GL.drawArrays(this._GL.TRIANGLE_STRIP, g.bufferIndex*4, 4);
             }
             if(isTab)
             {
-                x = startX + Math.floor(((x-startX) / (_TabSpaces*g.ha))+1)*(_TabSpaces*g.ha);
+                x = startX + Math.floor(((x-startX) / (this._TabSpaces*g.ha))+1)*(this._TabSpaces*g.ha);
             }
             else
             {
@@ -545,59 +559,62 @@ var Graphics = function (canvas)
             }
             p = c;
         }
-    };
+    }
 
-    var _DrawRect = function(x, y, width, height, opacity, color)
+    @bind
+    drawRect(x, y, width, height, opacity, color)
     {
-        _RectVertexData[0] = x;
-        _RectVertexData[1] = y + height;
+        this._RectVertexData[0] = x;
+        this._RectVertexData[1] = y + height;
 
-        _RectVertexData[4] = x;
-        _RectVertexData[5] = y;
+        this._RectVertexData[4] = x;
+        this._RectVertexData[5] = y;
 
-        _RectVertexData[8] = x+width;
-        _RectVertexData[9] = y+height;
+        this._RectVertexData[8] = x+width;
+        this._RectVertexData[9] = y+height;
 
-        _RectVertexData[12] = x+width;
-        _RectVertexData[13] = y;
+        this._RectVertexData[12] = x+width;
+        this._RectVertexData[13] = y;
 
-        _Bind(_ColorShader, _RectVertexBuffer);
-        _GL.bufferData(_GL.ARRAY_BUFFER, _RectVertexData, _GL.DYNAMIC_DRAW);
+        this._Bind(this._ColorShader, this._RectVertexBuffer);
+        this._GL.bufferData(this._GL.ARRAY_BUFFER, this._RectVertexData, this._GL.DYNAMIC_DRAW);
 
-        for(var i = 0; i < 4; i++) _ColorBuffer[i] = color[i];
+        for(var i = 0; i < 4; i++) this._ColorBuffer[i] = color[i];
 
-        _GL.uniform1f(_ColorShader.Uniforms.Opacity, opacity);  
-        _GL.uniform4fv(_ColorShader.Uniforms.Color, _ColorBuffer);
+        this._GL.uniform1f(this._ColorShader.Uniforms.Opacity, opacity);  
+        this._GL.uniform4fv(this._ColorShader.Uniforms.Color, this._ColorBuffer);
 
-        _FontWorldMatrix[12] = 0;
-        _FontWorldMatrix[13] = 0;
-        _GL.uniformMatrix4fv(_ColorShader.Uniforms.WorldMatrix, false, _FontWorldMatrix);
-        _GL.uniformMatrix4fv(_ColorShader.Uniforms.ProjectionMatrix, false, _OrthoProjection);
+        this._FontWorldMatrix[12] = 0;
+        this._FontWorldMatrix[13] = 0;
+        this._GL.uniformMatrix4fv(this._ColorShader.Uniforms.WorldMatrix, false, this._FontWorldMatrix);
+        this._GL.uniformMatrix4fv(this._ColorShader.Uniforms.ProjectionMatrix, false, this._OrthoProjection);
 
-        _GL.drawArrays(_GL.TRIANGLE_STRIP, 0, 4);
-    };
+        this._GL.drawArrays(this._GL.TRIANGLE_STRIP, 0, 4);
+    }
 
-    var _SetClip = function(x, y, w, h)
+    @bind
+    setClip(x, y, w, h)
     {
-        _GL.enable(_GL.SCISSOR_TEST);
-        _GL.scissor(x, _ViewportHeight-y-h, w, h);
+        this._GL.enable(this._GL.SCISSOR_TEST);
+        this._GL.scissor(x, this._ViewportHeight-y-h, w, h);
 
-        _Clips = 
+        this._Clips = 
         [
             {x:x, y:y, w:w, h:h}
         ];
-    };
+    }
 
-    var _PushClip = function(x,y,w,h)
+    @bind
+    pushClip(x,y,w,h)
     {
         //console.log("PUSH", _Clips.length);
-        if(!_Clips || _Clips.length == 0)
+        if(!this._Clips || this._Clips.length == 0)
         {
-            //_Clips.push({x:_ViewportX, y:_ViewportY, w:_ViewportWidth, h:_ViewportHeight})
-            _Clips.push({x:0.0, y:0.0, w:canvas.width, h:canvas.height})
+            //this._Clips.push({x:_ViewportX, y:_ViewportY, w:_ViewportWidth, h:_ViewportHeight})
+            this._Clips.push({x:0.0, y:0.0, w:this._Canvas.width, h:this._Canvas.height})
         }
 
-        var lastClip = _Clips[_Clips.length-1];
+        var lastClip = this._Clips[this._Clips.length-1];
         var clip = {};
         if(lastClip.x > x)
         {
@@ -634,53 +651,38 @@ var Graphics = function (canvas)
         {
             clip.h = (y+h)-y;
         }
-        _Clips.push(clip)
-        _GL.enable(_GL.SCISSOR_TEST);
-        _GL.scissor(clip.x, canvas.height-clip.y-clip.h, clip.w < 0 ? 0 : clip.w, clip.h < 0 ? 0 : clip.h);
-    };
+        this._Clips.push(clip)
+        this._GL.enable(this._GL.SCISSOR_TEST);
+        this._GL.scissor(clip.x, this._Canvas.height-clip.y-clip.h, clip.w < 0 ? 0 : clip.w, clip.h < 0 ? 0 : clip.h);
+    }
 
-    var _PopClip = function(x,y,w,h)
+    popClip(x,y,w,h)
     {
-        if(_Clips.length < 2)
+        if(this._Clips.length < 2)
         {
             return;
         }
-        else if(_Clips.length == 2)
+        else if(this._Clips.length == 2)
         {
-            _ClearClip();
+            this.clearClip();
             return;
         }
-        _Clips.splice(_Clips.length-1, 1);
-        var clip = _Clips[_Clips.length-1];
+        this._Clips.splice(this._Clips.length-1, 1);
+        var clip = this._Clips[this._Clips.length-1];
 
-        _GL.enable(_GL.SCISSOR_TEST);
-        _GL.scissor(clip.x, _ViewportHeight-clip.y-clip.h, clip.w < 0 ? 0 : clip.w, clip.h < 0 ? 0 : clip.h);
+        this._GL.enable(this._GL.SCISSOR_TEST);
+        this._GL.scissor(clip.x, this._ViewportHeight-clip.y-clip.h, clip.w < 0 ? 0 : clip.w, clip.h < 0 ? 0 : clip.h);
     };
 
-    var _ClearClip = function()
+    @bind
+    clearClip()
     {
-        _GL.disable(_GL.SCISSOR_TEST);
-        _Clips = [];
-    };
+        this._GL.disable(this._GL.SCISSOR_TEST);
+        this._Clips = [];
+    }
 
-    this.setClip = _SetClip;
-    this.clearClip = _ClearClip;
-    this.pushClip = _PushClip;
-    this.popClip = _PopClip;
-
-    this.enableBlending = _EnableBlending;
-    this.disableBlending = _DisableBlending;
-    this.enableDepthTest = _EnableDepthTest;
-    this.disableDepthTest = _DisableDepthTest;
-
-    this.setFont = _SetFont;
-    this.drawText = _DrawText;
-    this.drawRect = _DrawRect;
-
-    this.init = _Initialize;
-    this.clear = _Clear;
-    this.setTabSpaces = function(n)
+    setTabSpaces(n)
     {
-        _TabSpaces = n;
-    };
+        this._TabSpaces = n;
+    }
 };

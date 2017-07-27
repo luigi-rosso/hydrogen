@@ -1,75 +1,106 @@
-function Hydrogen(_Canvas)
+import bind from "bind";
+import CachedFont from "./CachedFont.js";
+import Graphics from "./Graphics.js";
+import Pane from "./Pane.js";
+
+export default class Hydrogen
 {
-	var _Hydrogen = this;
-	var _Font = new CachedFont("Fonts/Terminus.ttf16.cache");
-
-	var _Graphics = new Graphics(_Canvas);
-	var _UpdateTime = Date.now();
-	var _Panes = [];
-	var _MouseCaptureUI;
-	var _FocusUI;
-	var _IsOSX = navigator.userAgent.indexOf('Mac OS X') != -1;
-	var _WillAdvanceNextFrame = true;
-
-	if(!_Graphics.init())
+	constructor(canvas)
 	{
-		// TODO: Handle error.
-		return;
+		this._Canvas = canvas;
+		this._Hydrogen = this;
+		this._Font = new CachedFont("Fonts/Terminus.ttf16.cache");
+
+		this._Graphics = new Graphics(this._Canvas);
+		this._UpdateTime = Date.now();
+		this._Panes = [];
+		this._MouseCaptureUI;
+		this._FocusUI;
+		this._IsOSX = navigator.userAgent.indexOf("Mac OS X") != -1;
+		this._WillAdvanceNextFrame = true;
+
+		if(!this._Graphics.init())
+		{
+			// TODO: Handle error.
+			return;
+		}
+
+		window.addEventListener("resize", this._OnResize, false);
+		document.body.addEventListener("dragover", this._OnDragOver, false);
+		document.body.addEventListener("drop", this._OnDragDrop, false);
+		document.body.addEventListener("paste", this._OnPaste, true);
+		document.body.addEventListener("copy", this._OnCopy, true);
+		document.body.addEventListener("cut", this._OnCut, true);
+		document.body.addEventListener("mousewheel", this._OnMouseWheel, false);
+		document.body.addEventListener("mousedown", this._OnMouseDown, false);
+		window.addEventListener("mousemove", this._OnMouseMove, true);
+		window.addEventListener("mouseup", this._OnMouseUp, true);
+		document.body.addEventListener("keypress", this._OnKeyPress, false);
+		document.body.addEventListener("keydown", this._OnKeyDown, false);
+
+		this._OnResize();
+		this._Update();
+		this._AddPane(1.0, 1.0);
 	}
-
-	function _AddPane(xf, yf)
+	
+	_AddPane(xf, yf)
 	{
-		var pane = new Pane(_Hydrogen);
+		let pane = new Pane(this);
 		pane.xf = xf;
 		pane.yf = yf;
-		pane.setFont(_Font);
-		_Panes.push(pane);
+		pane.setFont(this._Font);
+		this._Panes.push(pane);
 
-		_SizeToFit();	
+		this._SizeToFit();	
 	}
 
-	function _OnResize()
+	@bind
+	_OnResize()
 	{
-		_SizeToFit();	
-	};
+		this._SizeToFit();	
+	}
 
-	function _OnDragOver(evt)
+	@bind
+	_OnDragOver(evt)
 	{
 		evt.stopPropagation();
         evt.preventDefault();
         evt.dataTransfer.dropEffect = "copy";
 	}
 
-	function _OnDragDrop(evt)
+	@bind
+	_OnDragDrop(evt)
 	{
 		evt.stopPropagation();
         evt.preventDefault();
 
-        for(var i = 0; i < _Panes.length; i++)
+        for(let i = 0; i < this._Panes.length; i++)
         {
-        	var pane = _Panes[i];
-        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
-        	{
-        		var files = evt.dataTransfer.files;
+			let pane = this._Panes[i];
+			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			{
+				let files = evt.dataTransfer.files;
 
-        		// For now just open the first file.
-		        if(files.length >= 1)
-		        {
-		            pane.openFile(files[0]);
-		        }
-        		break;
-        	}
+				// For now just open the first file.
+				if(files.length >= 1)
+				{
+					pane.openFile(files[0]);
+				}
+				break;
+			}
         }
 	}
 
-	function _OnPaste(e)
+	@bind
+	_OnPaste(e)
 	{
-		_FocusUI.onPaste(e.clipboardData);
+		this._FocusUI.onPaste(e.clipboardData);
 	}
 
-	function _OnCopy(e)
+	@bind
+	_OnCopy(e)
 	{
-		var data = _FocusUI.onCopy();
+		let data = this._FocusUI.onCopy();
 		if(data)
 		{
 			//console.log("SETTING DATA", data);
@@ -78,103 +109,109 @@ function Hydrogen(_Canvas)
 		}
 	}
 
-	function _OnCut(e)
+	@bind
+	_OnCut(e)
 	{
-		var data = _FocusUI.onCut();
+		let data = this._FocusUI.onCut();
 		if(data)
 		{
-			e.clipboardData.setData('text/plain', data);
+			e.clipboardData.setData("text/plain", data);
 		}
 	}
 
-	function _OnMouseWheel(evt)
+	@bind
+	_OnMouseWheel(evt)
 	{
 		evt.stopPropagation();
         evt.preventDefault();
 
-        for(var i = 0; i < _Panes.length; i++)
+        for(let i = 0; i < this._Panes.length; i++)
         {
-        	var pane = _Panes[i];
-        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
-        	{
-        		pane.onMouseWheel(evt);
-        		break;
-        	}
+			let pane = this._Panes[i];
+			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			{
+				pane.onMouseWheel(evt);
+				break;
+			}
         }
 	}
 
-	function _Focus(ui)
+	focus(ui)
 	{
-		_FocusUI = ui;
+		this._FocusUI = ui;
 	}
 
-	function _CaptureMouse(ui)
+	captureMouse(ui)
 	{
-		_MouseCaptureUI = ui;
+		this._MouseCaptureUI = ui;
 	}
 
-	function _OnMouseDown(evt)
-	{
-		evt.stopPropagation();
-        evt.preventDefault();
-
-        for(var i = 0; i < _Panes.length; i++)
-        {
-        	var pane = _Panes[i];
-        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
-        	{
-        		pane.onMouseDown(evt, evt.x-pane.x, evt.y-pane.y);
-        		break;
-        	}
-        }
-	}
-
-	function _OnMouseMove(evt)
+	@bind
+	_OnMouseDown(evt)
 	{
 		evt.stopPropagation();
         evt.preventDefault();
 
-        if(_MouseCaptureUI)
+        for(let i = 0; i < this._Panes.length; i++)
         {
-        	_MouseCaptureUI.onMouseMove(evt, evt.x-_MouseCaptureUI.x, evt.y-_MouseCaptureUI.y);
-        	return;
-        }
-
-        for(var i = 0; i < _Panes.length; i++)
-        {
-        	var pane = _Panes[i];
-        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
-        	{
-        		pane.onMouseMove(evt, evt.x-pane.x, evt.y-pane.y);
-        		break;
-        	}
+			let pane = this._Panes[i];
+			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			{
+				pane.onMouseDown(evt, evt.x-pane.x, evt.y-pane.y);
+				break;
+			}
         }
 	}
 
-	function _OnMouseUp(evt)
+	@bind
+	_OnMouseMove(evt)
 	{
 		evt.stopPropagation();
         evt.preventDefault();
 
-        if(_MouseCaptureUI)
+        if(this._MouseCaptureUI)
         {
-        	_MouseCaptureUI.onMouseUp(evt, evt.x-_MouseCaptureUI.x, evt.y-_MouseCaptureUI.y);
-        	_MouseCaptureUI = null;
-        	return;
+			this._MouseCaptureUI.onMouseMove(evt, evt.x-this._MouseCaptureUI.x, evt.y-this._MouseCaptureUI.y);
+			return;
         }
 
-        for(var i = 0; i < _Panes.length; i++)
+        for(let i = 0; i < this._Panes.length; i++)
         {
-        	var pane = _Panes[i];
-        	if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
-        	{
-        		pane.onMouseUp(evt, evt.x-pane.x, evt.y-pane.y);
-        		break;
-        	}
+			let pane = this._Panes[i];
+			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			{
+				pane.onMouseMove(evt, evt.x-pane.x, evt.y-pane.y);
+				break;
+			}
         }
 	}
 
-	function _OnKeyDown(evt)
+	@bind
+	_OnMouseUp(evt)
+	{
+		evt.stopPropagation();
+        evt.preventDefault();
+
+        if(this._MouseCaptureUI)
+        {
+			this._MouseCaptureUI.onMouseUp(evt, evt.x-this._MouseCaptureUI.x, evt.y-this._MouseCaptureUI.y);
+			this._MouseCaptureUI = null;
+			return;
+        }
+
+        for(let i = 0; i < this._Panes.length; i++)
+        {
+			let pane = this._Panes[i];
+			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			{
+				pane.onMouseUp(evt, evt.x-pane.x, evt.y-pane.y);
+				break;
+			}
+        }
+	}
+
+	@bind
+	_OnKeyDown(evt)
 	{
 		if(evt.keyCode == 8) // Prevent backspace navigation.
 		{
@@ -184,81 +221,81 @@ function Hydrogen(_Canvas)
 		switch(evt.keyCode)
 		{
 			case 9:
-				_FocusUI.doTab(evt.shiftKey);
+				this._FocusUI.doTab(evt.shiftKey);
 				evt.preventDefault();
 				break;
 			case 46:
-				_FocusUI.doDelete();
+				this._FocusUI.doDelete();
 				evt.preventDefault();
 				break;
 			case 38:
-				if(_IsOSX && evt.metaKey)
+				if(this._IsOSX && evt.metaKey)
 				{
-					_FocusUI.cursorPageUp(evt.shiftKey);
+					this._FocusUI.cursorPageUp(evt.shiftKey);
 				}
 				else
 				{
-					_FocusUI.cursorUp(evt.shiftKey);	
+					this._FocusUI.cursorUp(evt.shiftKey);	
 				}
 				evt.preventDefault();
 				break;
 			case 40:
-				if(_IsOSX && evt.metaKey)
+				if(this._IsOSX && evt.metaKey)
 				{
-					_FocusUI.cursorPageDown(evt.shiftKey);
+					this._FocusUI.cursorPageDown(evt.shiftKey);
 				}
 				else
 				{
-					_FocusUI.cursorDown(evt.shiftKey);
+					this._FocusUI.cursorDown(evt.shiftKey);
 				}
 				evt.preventDefault();
 				break;
 			case 37:
-				if(_IsOSX && evt.metaKey)
+				if(this._IsOSX && evt.metaKey)
 				{
-					_FocusUI.cursorHome(evt.shiftKey);
+					this._FocusUI.cursorHome(evt.shiftKey);
 				}
 				else if(evt.altKey)
 				{
-					_FocusUI.cursorWordLeft(evt.shiftKey);
+					this._FocusUI.cursorWordLeft(evt.shiftKey);
 				}
 				else
 				{
-					_FocusUI.cursorLeft(evt.shiftKey);
+					this._FocusUI.cursorLeft(evt.shiftKey);
 				}
 				evt.preventDefault();
 				break;
 			case 39:
-				if(_IsOSX && evt.metaKey)
+				if(this._IsOSX && evt.metaKey)
 				{
-					_FocusUI.cursorEnd(evt.shiftKey);
+					this._FocusUI.cursorEnd(evt.shiftKey);
 				}
 				else if(evt.altKey)
 				{
-					_FocusUI.cursorWordRight(evt.shiftKey);
+					this._FocusUI.cursorWordRight(evt.shiftKey);
 				}
 				else
 				{
-					_FocusUI.cursorRight(evt.shiftKey);
+					this._FocusUI.cursorRight(evt.shiftKey);
 				}
 				evt.preventDefault();
 				break;
 			case 8:
-				_FocusUI.backspace();
+				this._FocusUI.backspace();
 				evt.preventDefault();
 				break;
 			case 90:
-				if(_IsOSX)
+				if(this._IsOSX)
 				{
 					if(evt.metaKey)
 					{
 						if(evt.shiftKey)
 						{
-							_FocusUI.redo();
+							this._FocusUI.redo();
 						}
 						else
 						{
-							_FocusUI.undo();
+							this._FocusUI.undo();
 						}
 					}
 				}
@@ -266,11 +303,11 @@ function Hydrogen(_Canvas)
 				{
 					if(evt.shiftKey)
 					{
-						_FocusUI.redo();
+						this._FocusUI.redo();
 					}
 					else
 					{
-						_FocusUI.undo();
+						this._FocusUI.undo();
 					}
 				}
 				break;
@@ -279,11 +316,12 @@ function Hydrogen(_Canvas)
         
 	}
 
-	function _OnKeyPress(evt)
+	@bind
+	_OnKeyPress(evt)
 	{
-		if(_FocusUI)
+		if(this._FocusUI)
 		{
-			if(_IsOSX && evt.metaKey)
+			if(this._IsOSX && evt.metaKey)
 			{
 				switch(evt.keyCode)
 				{
@@ -294,7 +332,7 @@ function Hydrogen(_Canvas)
 						return;
 				}
 			}
-			if(_FocusUI.onKeyPress(evt))
+			if(this._FocusUI.onKeyPress(evt))
 			{
 				evt.stopPropagation();
 				evt.preventDefault();
@@ -302,98 +340,76 @@ function Hydrogen(_Canvas)
 		}
 	}
 
-
-	window.addEventListener('resize', _OnResize, false);
-    document.body.addEventListener('dragover', _OnDragOver, false);
-    document.body.addEventListener('drop', _OnDragDrop, false);
-    document.body.addEventListener('paste', _OnPaste, true);
-    document.body.addEventListener('copy', _OnCopy, true);
-    document.body.addEventListener('cut', _OnCut, true);
-    document.body.addEventListener('mousewheel', _OnMouseWheel, false);
-    document.body.addEventListener('mousedown', _OnMouseDown, false);
-    window.addEventListener('mousemove', _OnMouseMove, true);
-    window.addEventListener('mouseup', _OnMouseUp, true);
-    document.body.addEventListener('keypress', _OnKeyPress, false);
-    document.body.addEventListener('keydown', _OnKeyDown, false);
-
-	function _SizeToFit()
+	@bind
+	_SizeToFit()
 	{
-		_Canvas.width = window.innerWidth;
-		_Canvas.height = window.innerHeight;
-		_Graphics.setViewport(0.0, 0.0, _Canvas.width, _Canvas.height);
+		this._Canvas.width = window.innerWidth;
+		this._Canvas.height = window.innerHeight;
+		this._Graphics.setViewport(0.0, 0.0, this._Canvas.width, this._Canvas.height);
 
-		var x = 0;
-		var y = 0;
-		var width = _Canvas.width;
-		var height = _Canvas.height;
-		for(var i = 0; i < _Panes.length; i++)
+		let x = 0;
+		let y = 0;
+		let width = this._Canvas.width;
+		let height = this._Canvas.height;
+		for(let i = 0; i < this._Panes.length; i++)
 		{
-			var pane = _Panes[i];
-			pane.place(x, y, _Canvas.width * pane.xf, _Canvas.height * pane.yf);
+			let pane = this._Panes[i];
+			pane.place(x, y, this._Canvas.width * pane.xf, this._Canvas.height * pane.yf);
 			x += pane.width;
 			//y += pane.height;
 		}
 	}
 
-	_OnResize();
-
-	function _Update()
+	@bind
+	_Update()
 	{
-		var now = Date.now();
-        var elapsed = now - _UpdateTime;
-		var elapsedS = elapsed/1000.0;
-		_UpdateTime = now;
+		let now = Date.now();
+        let elapsed = now - this._UpdateTime;
+		let elapsedS = elapsed/1000.0;
+		this._UpdateTime = now;
 
-		var redraw = false;
-		for(var i = 0; i < _Panes.length; i++)
+		let redraw = false;
+		for(let i = 0; i < this._Panes.length; i++)
 		{
-			var pane = _Panes[i];
+			let pane = this._Panes[i];
 			if(pane.advance(elapsedS))
 			{
 				redraw = true;
 			}
 		}
 
-		_Graphics.clear([0.12, 0.12, 0.12, 1.0]);
+		this._Graphics.clear([0.12, 0.12, 0.12, 1.0]);
 
-		for(var i = 0; i < _Panes.length; i++)
+		for(let i = 0; i < this._Panes.length; i++)
 		{
-			var pane = _Panes[i];
-			pane.draw(_Graphics);
+			let pane = this._Panes[i];
+			pane.draw(this._Graphics);
 		}
 
 		if(redraw)
 		{
-			_WillAdvanceNextFrame = true;
-			requestAnimFrame(_Update);
+			this._WillAdvanceNextFrame = true;
+			window.requestAnimFrame(this._Update);
 		}
 		else
 		{
-			_WillAdvanceNextFrame = false;
+			this._WillAdvanceNextFrame = false;
 		}
 	}
-	this.scheduleUpdate = _ScheduleUpdate;
-	function _ScheduleUpdate()
+
+	scheduleUpdate()
 	{
-		if(_WillAdvanceNextFrame)
+		if(this._WillAdvanceNextFrame)
 		{
 			return;
 		}
-		_UpdateTime = Date.now();
-		_WillAdvanceNextFrame = true;
-		requestAnimFrame(_Update);
+		this._UpdateTime = Date.now();
+		this._WillAdvanceNextFrame = true;
+		window.requestAnimFrame(this._Update);
 	}
 
-	_Update();
-
-    this.__defineGetter__("font", function()
-    {
-        return _Font;
-    });
-
-    this.captureMouse = _CaptureMouse;
-    this.focus = _Focus;
-
-    _AddPane(1.0, 1.0);
-	//_AddPane(0.5, 1.0);
+	get font()
+	{
+		return this._Font;
+	}
 }

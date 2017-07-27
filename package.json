@@ -1,0 +1,34 @@
+{
+  "name": "hydrogen",
+  "version": "1.0.0",
+  "description": "Lightweight code editor built entirely in JavaScript with WebGL rendering. Try it out at http://luigi-rosso.github.io/hydrogen/. Just drag and drop a text file in.",
+  "scripts": {
+    "start": "./node_modules/.bin/webpack -d --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luigi-rosso/hydrogen.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/luigi-rosso/hydrogen/issues"
+  },
+  "homepage": "https://github.com/luigi-rosso/hydrogen#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "babel-core": "^6.24.1",
+    "babel-eslint": "^6.1.2",
+    "babel-loader": "^7.0.0",
+    "babel-plugin-transform-decorators-legacy": "^1.3.4",
+    "babel-preset-es2016": "^6.24.1",
+    "babel-preset-react": "^6.24.1",
+    "bind": "git+https://github.com/luigi-rosso/bind.git",
+    "eslint": "^3.19.0",
+    "eslint-loader": "^1.7.1",
+    "eslint-plugin-react": "^7.0.1",
+    "react": "^15.1.0",
+    "react-dom": "^15.1.0",
+    "webpack": "^2.7.0"
+  }
+}

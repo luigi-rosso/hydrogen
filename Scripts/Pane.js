@@ -1,150 +1,145 @@
-function Pane(_Hydrogen)
+import bind from "bind";
+import Cursor from "./Cursor.js";
+import Document from "./Document.js";
+
+export default class Pane
 {
-	var _X = 0;
-	var _Y = 0;
-	var _Width = 0;
-	var _Height = 0;
-	var _X2 = 0;
-	var _Y2 = 0;
-	var _DragScrollMargin = 50;
-	var _DoubleClickDelay = 300;
-	var _HistoryCaptureDelay = 1000;
-
-	var _UseDomCursor = true;
-	var _DomCursors = [];
-	var _IsBlinkingDisabled = false;
-	var _JustInput = null;
-	var _JustInputTimeout;
-
-	var _Font;
-
-	var _GutterPadding = 10.0;
-	var _LineHeightScale = 1.5;
-	var _CodeColor = [1.0, 1.0, 1.0, 1.0];
-	var _CursorColor = [1.0, 0.7, 0.0, 1.0];
-	var _LineLabelColor = [0.3, 0.3, 0.3, 1.0];
-	var _SelectionColor = [0.2, 0.2, 0.2, 1.0];
-	var _HighlightColor = [0.07, 0.07, 0.07, 1.0];
-
-	var _ScrollX = 0.0;
-	var _ScrollY = 0.0;
-	var _RenderScrollX = 0.0;
-	var _RenderScrollY = 0.0;
-	var _ScrollYVelocity = 0.0;
-
-	var _TriggeredScrollX = 0.0;
-	var _TriggeredScrollY = 0.0;
-
-	var _Document;
-
-	var _Cursors = [];
-	var _IsDragging = false;
-	var _ChangeTimeout = null;
-
-	function _SetFont(font)
+	constructor(hydrogen)
 	{
-		_Font = font;
-		_ClampScroll();
-		_Hydrogen.scheduleUpdate();
+		this._Hydrogen = hydrogen;
+		this._X = 0;
+		this._Y = 0;
+		this._Width = 0;
+		this.let = 0;
+
+		this._X2 = 0;
+		this._Y2 = 0;
+		this._DragScrollMargin = 50;
+		this._DoubleClickDelay = 300;
+		this._HistoryCaptureDelay = 1000;
+
+		this._UseDomCursor = true;
+		this._DomCursors = [];
+		this._IsBlinkingDisabled = false;
+		this._JustInput = null;
+		this._JustInputTimeout;
+
+		this._Font;
+
+		this._GutterPadding = 10.0;
+		this._LineHeightScale = 1.5;
+		this._CodeColor = [1.0, 1.0, 1.0, 1.0];
+		this._CursorColor = [1.0, 0.7, 0.0, 1.0];
+		this._LineLabelColor = [0.3, 0.3, 0.3, 1.0];
+		this._SelectionColor = [0.2, 0.2, 0.2, 1.0];
+		this._HighlightColor = [0.07, 0.07, 0.07, 1.0];
+
+		this._ScrollX = 0.0;
+		this._ScrollY = 0.0;
+		this._RenderScrollX = 0.0;
+		this._RenderScrollY = 0.0;
+		this._ScrollYVelocity = 0.0;
+
+		this._TriggeredScrollX = 0.0;
+		this._TriggeredScrollY = 0.0;
+
+		this._Document;
+
+		this._Cursors = [];
+		this._IsDragging = false;
+		this._ChangeTimeout = null;
+
+
+		this._Journal = [];
+		this._JournalIndex = -1;
+
+		this._LastMouseDown = Date.now();
+
+		this._MouseX = 0;
+		this._MouseY = 0;
+	}
+	
+	setFont(font)
+	{
+		this._Font = font;
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _Place(x, y, width, height)
+	@bind
+	place(x, y, width, height)
 	{
-		_X = Math.round(x);
-		_X2 = Math.round(x + width);
-		_Width = Math.round(width);
-		_Y = Math.round(y);
-		_Y2 = Math.round(y + height);
-		_Height = Math.round(height);
+		this._X = Math.round(x);
+		this._X2 = Math.round(x + width);
+		this._Width = Math.round(width);
+		this._Y = Math.round(y);
+		this._Y2 = Math.round(y + height);
+		this._Height = Math.round(height);
 
-		_ClampScroll();
-		_Hydrogen.scheduleUpdate();
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-    this.__defineGetter__("x", function()
-    {
-        return _X;
-    });
-
-    this.__defineGetter__("y", function()
-    {
-        return _Y;
-    });
-
-    this.__defineGetter__("x2", function()
-    {
-        return _X2;
-    });
-
-    this.__defineGetter__("y2", function()
-    {
-        return _Y2;
-    });
-
-    this.__defineGetter__("width", function()
-    {
-        return _Width;
-    });
-
-    this.__defineGetter__("height", function()
-    {
-        return _Height;
-    });
-
-    function _OpenFile(file)
-    {
-    	_Document = new Document(_Hydrogen);
-    	_Document.onContentsChange = function()
-    	{
-    		let start = Date.now();
-    		let lines = _Document.lines;
-    		clearTimeout(_ChangeTimeout);
-    		_CaptureJournalEntry();
-    		_Hydrogen.scheduleUpdate();
-    	};
-    	_Document.fromFile(file);
-    	_Cursors = [];
-    	_ClampScroll();
-    	_Hydrogen.scheduleUpdate();
-    }
-
-    var _Journal = [];
-    var _JournalIndex = -1;
-
-    function _CaptureJournalEntry()
-    {
-    	let txt = _Document.text;
-
-    	var entry = {
-    		text:_Document.text,
-    		redoCursors:[],
-    		undoCursors:[]
-    	};
-
-    	for(var i = 0; i < _Cursors.length; i++)
-    	{
-    		var cursor = _Cursors[i];
-    		entry.redoCursors.push(cursor.serialize());
-    	}
-
-    	if(_JournalIndex+1 < _Journal.length)
-    	{
-    		_Journal.splice(_JournalIndex+1, _Journal.length+1 - _JournalIndex);
-    	}
-    	_Journal.push(entry);
-    	_JournalIndex = _Journal.length-1;
-    }
-
-	function _OnPaste(data)
+	@bind
+	onDocumentContentsChanged()
 	{
-		var plainText = data.getData("text/plain");
-	 	if(plainText && plainText.constructor === String)
+		clearTimeout(this._ChangeTimeout);
+		this._CaptureJournalEntry();
+		this._Hydrogen.scheduleUpdate();
+	}
+
+	@bind
+    openFile(file)
+    {
+		this._Document = new Document(this, this._Hydrogen);
+	    /*this._Document.onContentsChange = function()
 		{
-			_ReplaceSelectionWith(plainText);
+			// let start = Date.now();
+			// let lines = self._Document.lines;
+			clearTimeout(self._ChangeTimeout);
+			self._CaptureJournalEntry();
+			self._Hydrogen.scheduleUpdate();
+		};*/
+		this._Document.fromFile(file);
+		this._Cursors = [];
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
+    }
+
+    _CaptureJournalEntry()
+    {
+		let txt = this._Document.text;
+
+		let entry = {
+			text:this._Document.text,
+			redoCursors:[],
+			undoCursors:[]
+		};
+
+		for(let i = 0; i < this._Cursors.length; i++)
+		{
+			let cursor = this._Cursors[i];
+			entry.redoCursors.push(cursor.serialize());
+		}
+
+		if(this._JournalIndex+1 < this._Journal.length)
+		{
+			this._Journal.splice(this._JournalIndex+1, this._Journal.length+1 - this._JournalIndex);
+		}
+		this._Journal.push(entry);
+		this._JournalIndex = this._Journal.length-1;
+    }
+
+	onPaste(data)
+	{
+		let plainText = data.getData("text/plain");
+		if(plainText && plainText.constructor === String)
+		{
+			this._ReplaceSelectionWith(plainText);
 		}
 	}
 
-	function _ConvertToText(intArray)
+	_ConvertToText(intArray)
 	{
 		let result = "";
 		for(let ti = 0; ti < intArray.length; ti++)
@@ -157,62 +152,62 @@ function Pane(_Hydrogen)
 		return result;
 	}
 
-	function _OnCopy()
+	onCopy()
 	{
-		var data = [];
-		var lines = _Document.lines;
-		for(var i = 0; i < _Cursors.length; i++)
-    	{
-    		var cursor = _Cursors[i];
-    		if(cursor.hasRange)
-    		{
-    			if(cursor.lineFrom === cursor.lineTo)
-    			{
-    				let line = lines[cursor.lineFrom];
-    				let sel = _ConvertToText(line.slice(cursor.columnFrom, cursor.columnTo));
-    				data.push(sel);
-    			}
-    			else
-    			{
-    				let sel = _ConvertToText(lines[cursor.lineFrom].slice(cursor.columnFrom));
+		let data = [];
+		let lines = this._Document.lines;
+		for(let i = 0; i < this._Cursors.length; i++)
+		{
+			let cursor = this._Cursors[i];
+			if(cursor.hasRange)
+			{
+				if(cursor.lineFrom === cursor.lineTo)
+				{
+					let line = lines[cursor.lineFrom];
+					let sel = this._ConvertToText(line.slice(cursor.columnFrom, cursor.columnTo));
 					data.push(sel);
-					for(var j = cursor.lineFrom+1; j < cursor.lineTo; j++)
+				}
+				else
+				{
+					let sel = this._ConvertToText(lines[cursor.lineFrom].slice(cursor.columnFrom));
+					data.push(sel);
+					for(let j = cursor.lineFrom+1; j < cursor.lineTo; j++)
 					{
-						sel = _ConvertToText(lines[j]);
+						sel = this._ConvertToText(lines[j]);
 						data.push(sel);
 					}
 
-					sel = _ConvertToText(lines[cursor.lineTo].slice(0, cursor.columnTo));
+					sel = this._ConvertToText(lines[cursor.lineTo].slice(0, cursor.columnTo));
 					data.push(sel);
-    			}
-    		}
-    	}
+				}
+			}
+		}
 
-    	let finalData = data.length ? data.join(_Document.lineBreak) : null;
-    	return finalData;
+		let finalData = data.length ? data.join(this._Document.lineBreak) : null;
+		return finalData;
 	}
 
-	function _OnCut()
+	onCut()
 	{
-		var data = "";
+		let data = "";
 		return data.length ? data : null;
 	}
 
-	function _PositionToLocation(rx, ry)
+	_PositionToLocation(rx, ry)
 	{
-		var lines = _Document.lines;
+		let lines = this._Document.lines;
 
-		var maxLabelWidth = _Document.maxLineDigits * _Font.horizontalAdvance;
-		var gutter = _GutterPadding + maxLabelWidth + _GutterPadding;
+		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
 
-		var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
-		var firstLine = Math.floor(-_ScrollY / lineHeight);
+		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		let firstLine = Math.floor(-this._ScrollY / lineHeight);
 		
-		var firstLineOrigin = _ScrollY % lineHeight;
+		let firstLineOrigin = this._ScrollY % lineHeight;
 
-		var hitLine = firstLine + Math.floor((ry - firstLineOrigin)/lineHeight);
+		let hitLine = firstLine + Math.floor((ry - firstLineOrigin)/lineHeight);
 
-		var columnWidth = _Font.horizontalAdvance;
+		let columnWidth = this._Font.horizontalAdvance;
 
 		if(hitLine >= lines.length)
 		{
@@ -223,24 +218,24 @@ function Pane(_Hydrogen)
 			return { line:0, column:0 };	
 		}
 
-		var line = lines[hitLine];
+		let line = lines[hitLine];
 
-		var t = line;
-		var tl = t.length;
-		var x = _ScrollX + gutter;
-		var startX = x;
+		let t = line;
+		let tl = t.length;
+		let x = this._ScrollX + gutter;
+		let startX = x;
 
-		var hitColumn = -1;
+		let hitColumn = -1;
 
 		if(rx < x)
 		{
 			return { line:hitLine, column:0 };
 		}
-		var numTabSpaces = _Document.numTabSpaces;
-		for(var i = 0; i < tl; i++)
+		let numTabSpaces = this._Document.numTabSpaces;
+		for(let i = 0; i < tl; i++)
 		{
-			var c = t[i];
-			var lx = x;
+			let c = t[i];
+			let lx = x;
 			switch(c)
 			{
 				case 9:
@@ -278,49 +273,50 @@ function Pane(_Hydrogen)
 		return { line:hitLine, column:hitColumn };
 	}
 
-	var _LastMouseDown = Date.now();
-	function _OnMouseDown(evt, rx, ry)
+	@bind
+	onMouseDown(evt, rx, ry)
 	{
-		if(!_Document)
+		if(!this._Document)
 		{
 			return;
 		}
 
-		var now = Date.now();
-		var spanWord = !_IsDragging && (now-_LastMouseDown < _DoubleClickDelay || evt.altKey) && _Cursors.length === 1;
-		_LastMouseDown = now;
-		_IsDragging = true;
-		_Hydrogen.captureMouse(this);
-		_Hydrogen.focus(this);
+		let now = Date.now();
+		let spanWord = !this._IsDragging && (now-this._LastMouseDown < this._DoubleClickDelay || evt.altKey) && this._Cursors.length === 1;
+		this._LastMouseDown = now;
+		this._IsDragging = true;
+		this._Hydrogen.captureMouse(this);
+		this._Hydrogen.focus(this);
 
-		var hit = _PositionToLocation(rx, ry);
+		let hit = this._PositionToLocation(rx, ry);
 		if(!hit)
 		{
 			return;
 		}
 
-		if(evt.shiftKey && _Cursors.length > 0)
-		{
-			var cursorLine = 0;
-			var cursor = null;
+		let cursor = null;
 
-			for(var i = 0; i < _Cursors.length; i++)
+		if(evt.shiftKey && this._Cursors.length > 0)
+		{
+			let cursorLine = 0;
+
+			for(let i = 0; i < this._Cursors.length; i++)
 			{
-				var cursor = _Cursors[i];
+				let cur = this._Cursors[i];
 				if(cursor.lineFrom > cursorLine)
 				{
 					cursorLine = cursor.lineFrom;
-					cursor = cursor;
+					cursor = cur;
 				}
 			}
 
-			var line2 = hit.line;
-			var column2 = hit.column;
+			let line2 = hit.line;
+			let column2 = hit.column;
 
-			var minLine = cursor.lineFrom;
-			var minColumn = cursor.columnFrom;
-			var maxLine = cursor.lineTo;
-			var maxColumn = cursor.columnTo;
+			let minLine = cursor.lineFrom;
+			let minColumn = cursor.columnFrom;
+			let maxLine = cursor.lineTo;
+			let maxColumn = cursor.columnTo;
 
 			
 			if(hit.line <= cursor.lineFrom)
@@ -344,47 +340,47 @@ function Pane(_Hydrogen)
 		{			
 			if(!evt.metaKey)
 			{
-				_Cursors = [];
+				this._Cursors = [];
 			}
 			
-			var cursor = new Cursor();
+			cursor = new Cursor();
 			cursor.place(hit.line, hit.column);
-			_Cursors.push(cursor);
+			this._Cursors.push(cursor);
 
 			if(spanWord)
 			{
-				cursor.spanWord(_Document);
+				cursor.spanWord(this._Document);
 			}
-			_ValidateCursors();
+			this._ValidateCursors();
 		}
 
-		cursor.setPlacedColumn(_Document);
-		_EnsureCursorVisible(true);
-		_Hydrogen.scheduleUpdate();
+		cursor.setPlacedColumn(this._Document);
+		this._EnsureCursorVisible(true);
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _EnsureCursorVisible(closest)
+	_EnsureCursorVisible(closest)
 	{
-		if(_Cursors.length === 0)
+		if(this._Cursors.length === 0)
 		{
 			return;
 		}
 
-		var lines = _Document.lines;
-		var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
+		let lines = this._Document.lines;
+		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 
-		var renderScrollY = Math.round(_ScrollY);
-		var renderScrollX = Math.round(_ScrollX);
+		let renderScrollY = Math.round(this._ScrollY);
+		let renderScrollX = Math.round(this._ScrollX);
 		
-		var contentHeight = lines.length * lineHeight;
-		var visibleLines = Math.floor(_Height / lineHeight);
-		var firstLine = Math.ceil(-renderScrollY / lineHeight);
-		var lastLine = Math.min(firstLine + visibleLines-1, lines.length-1); // visible lines - 1 as it's the last index
+		let contentHeight = lines.length * lineHeight;
+		let visibleLines = Math.floor(this._Height / lineHeight);
+		let firstLine = Math.ceil(-renderScrollY / lineHeight);
+		let lastLine = Math.min(firstLine + visibleLines-1, lines.length-1); // visible lines - 1 as it's the last index
 
-		var isCursorVisible = false;
-		for(var i = 0; i < _Cursors.length; i++)
+		let isCursorVisible = false;
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 			if(cursor.lineAt >= firstLine && cursor.lineAt <= lastLine)
 			{
 				isCursorVisible = true;
@@ -393,65 +389,65 @@ function Pane(_Hydrogen)
 		}
 		if(!isCursorVisible)
 		{
-			var cursor = _Cursors[0];
+			let cursor = this._Cursors[0];
 			if(!closest)
 			{
-				_ScrollY = -cursor.lineAt * lineHeight + _Height/2;
+				this._ScrollY = -cursor.lineAt * lineHeight + this._Height/2;
 			}
 			else
 			{
-				var cursorTop = -cursor.lineAt * lineHeight;
-				//var cursorBottom = _Height - lineHeight - cursor.lineAt * lineHeight;
+				let cursorTop = -cursor.lineAt * lineHeight;
+				//let cursorBottom = this._Height - lineHeight - cursor.lineAt * lineHeight;
 
-				var cursorHeight = _Font.lineHeight;
-				var startY = cursor.lineAt * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0;
-				var cursorBottom = _Height - lineHeight - startY;
+				let cursorHeight = this._Font.lineHeight;
+				let startY = cursor.lineAt * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0;
+				let cursorBottom = this._Height - lineHeight - startY;
 
-				if(Math.abs(cursorTop - _ScrollY) < Math.abs(cursorBottom - _ScrollY))
+				if(Math.abs(cursorTop - this._ScrollY) < Math.abs(cursorBottom - this._ScrollY))
 				{
-					_ScrollY = cursorTop;
+					this._ScrollY = cursorTop;
 				}
 				else
 				{
-					_ScrollY = cursorBottom;
+					this._ScrollY = cursorBottom;
 				}
 			}
-			_ClampScroll();
-			_Hydrogen.scheduleUpdate();
+			this._ClampScroll();
+			this._Hydrogen.scheduleUpdate();
 		}
 	}
 
-	function _ValidateCursors()
+	_ValidateCursors()
 	{
-		_Cursors.sort(function(a, b)
+		this._Cursors.sort(function(a, b)
 		{
 			return a.columnFrom - b.columnFrom;
 		});
 
-		_Cursors.sort(function(a, b)
+		this._Cursors.sort(function(a, b)
 		{
 			return a.lineFrom - b.lineFrom;
 		});
 
 		// Merge overlaps.
-		for(var i = 0; i < _Cursors.length-1; i++)
+		for(let i = 0; i < this._Cursors.length-1; i++)
 		{
-			var cursorA = _Cursors[i];
-			var cursorB = _Cursors[i+1];
+			let cursorA = this._Cursors[i];
+			let cursorB = this._Cursors[i+1];
 			console.log("HERE", cursorA.serialize(), cursorB.serialize());
 
 			if(cursorB.lineFrom < cursorA.lineTo || (cursorB.lineFrom == cursorA.lineTo && cursorB.columnFrom <= cursorA.columnTo))
 			{
 				cursorA.span(cursorA.lineFrom, cursorA.columnFrom, cursorB.lineTo, cursorB.columnTo);
-				_Cursors.splice(i+1, 1);
+				this._Cursors.splice(i+1, 1);
 				i--;
 			}
 		}
 	}
 
-	function _DragCursor(rx, ry)
+	_DragCursor(rx, ry)
 	{
-		var cursor = _Cursors[0];
+		let cursor = this._Cursors[0];
 		if(!cursor.pivot)
 		{
 			cursor.pivot =
@@ -461,21 +457,21 @@ function Pane(_Hydrogen)
 			};
 		}
 
-		var hit = _PositionToLocation(rx, ry);
+		let hit = this._PositionToLocation(rx, ry);
 
 		//cursor.line = hit.line;
 		//cursor.column = hit.column;
 		
-		var changed = cursor.span(hit.line, hit.column, cursor.pivot.line, cursor.pivot.column);
-		var sv;
-		if(ry <= _DragScrollMargin)
+		let changed = cursor.span(hit.line, hit.column, cursor.pivot.line, cursor.pivot.column);
+		let sv;
+		if(ry <= this._DragScrollMargin)
 		{
-			var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
+			let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 			sv = lineHeight*25;
 		}
-		else if(ry >= _Height - _DragScrollMargin)
+		else if(ry >= this._Height - this._DragScrollMargin)
 		{
-			var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
+			let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 			sv = -lineHeight*25;
 		}
 		else
@@ -483,95 +479,93 @@ function Pane(_Hydrogen)
 			sv = 0;
 		}
 
-		if(_ScrollYVelocity != sv)
+		if(this._ScrollYVelocity != sv)
 		{
-			_ScrollYVelocity = sv;
+			this._ScrollYVelocity = sv;
 			changed = true;
 		}
 
 		if(changed)
 		{
-			_Hydrogen.scheduleUpdate();
+			this._Hydrogen.scheduleUpdate();
 		}
 	}
-
-	var _MouseX = 0;
-	var _MouseY = 0;
 	
-	function _OnMouseMove(evt, rx, ry)
+	@bind
+	onMouseMove(evt, rx, ry)
 	{
-		_MouseX = rx;
-		_MouseY = ry;
-		if(!_IsDragging || _Cursors.length == 0)
+		this._MouseX = rx;
+		this._MouseY = ry;
+		if(!this._IsDragging || this._Cursors.length == 0)
 		{
 			return;
 		}
-		_IsDragging = true;
+		this._IsDragging = true;
 
-		_DragCursor(rx, ry);
+		this._DragCursor(rx, ry);
 	}
 
-	function _ChangeComplete()
+	_ChangeComplete()
 	{
-		if(_ChangeTimeout)
+		if(this._ChangeTimeout)
 		{
-			clearTimeout(_ChangeTimeout);
-			_ChangeTimeout = null;
-			_CaptureJournalEntry();
-			_Document.repaintLines();
+			clearTimeout(this._ChangeTimeout);
+			this._ChangeTimeout = null;
+			this._CaptureJournalEntry();
+			this._Document.repaintLines();
 		}
 	}
 
-	function _TriggerChange()
+	_TriggerChange()
 	{
-		if(!_ChangeTimeout)
+		if(!this._ChangeTimeout)
 		{
-			var lastEntry = _Journal[_JournalIndex];
+			let lastEntry = this._Journal[this._JournalIndex];
 			lastEntry.undoCursors.length = 0;
-	    	for(var i = 0; i < _Cursors.length; i++)
-	    	{
-	    		var cursor = _Cursors[i];
-	    		lastEntry.undoCursors.push(cursor.serialize());
-	    	}
+			for(let i = 0; i < this._Cursors.length; i++)
+			{
+				let cursor = this._Cursors[i];
+				lastEntry.undoCursors.push(cursor.serialize());
+			}
 		}
-		if(!_ChangeTimeout)
+		if(!this._ChangeTimeout)
 		{
-			_ChangeTimeout = setTimeout(_ChangeComplete, _HistoryCaptureDelay);
+			this._ChangeTimeout = setTimeout(this._ChangeComplete, this._HistoryCaptureDelay);
 		}
 		
-		_TriggeredScrollX = _ScrollX;
-		_TriggeredScrollY = _ScrollY;
+		this._TriggeredScrollX = this._ScrollX;
+		this._TriggeredScrollY = this._ScrollY;
 	}
 
-	function _Backspace()
+	backspace()
 	{
-		_TriggerChange();
+		this._TriggerChange();
 
-		var nonRangeCursors = [];
-		for(var i = 0; i < _Cursors.length; i++)
+		let nonRangeCursors = [];
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 			if(!cursor.hasRange)
 			{
 				nonRangeCursors.push(cursor);
 			}
 		}
-		_DeleteSelection();
-		var lines = _Document.lines;
-		var removedLines = 0;
-		for(var i = 0; i < nonRangeCursors.length; i++)
+		this._DeleteSelection();
+		let lines = this._Document.lines;
+		let removedLines = 0;
+		for(let i = 0; i < nonRangeCursors.length; i++)
 		{
-			var cursor = nonRangeCursors[i];
-			var lineFrom = cursor.lineFrom - removedLines;
-			var line = lines[lineFrom];
-			var column = cursor.columnFrom;
+			let cursor = nonRangeCursors[i];
+			let lineFrom = cursor.lineFrom - removedLines;
+			let line = lines[lineFrom];
+			let column = cursor.columnFrom;
 
 			if(column === 0)
 			{
 				if(lineFrom > 0)
 				{
-					var previousLine = lines[lineFrom-1];
-					var previousLineLength = previousLine.length;
+					let previousLine = lines[lineFrom-1];
+					let previousLineLength = previousLine.length;
 
 					lines[lineFrom-1] = new Uint32Array(previousLine.length + lines[lineFrom].length);
 					lines[lineFrom-1].set(previousLine);
@@ -596,33 +590,33 @@ function Pane(_Hydrogen)
 			}
 		}
 
-		_EnsureCursorVisible();
+		this._EnsureCursorVisible();
 	}
 
-	function _Enter()
+	_Enter()
 	{
-		_TriggerChange();
+		this._TriggerChange();
 
-		_DeleteSelection();
-		var lines = _Document.lines;
-		var linesAdded = 0;
-		for(var i = 0; i < _Cursors.length; i++)
+		this._DeleteSelection();
+		let lines = this._Document.lines;
+		let linesAdded = 0;
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 			if(!cursor.hasRange)
 			{
-				var lineFrom = cursor.lineFrom + linesAdded;
-				var line = lines[lineFrom];
-				var column = cursor.columnFrom;
+				let lineFrom = cursor.lineFrom + linesAdded;
+				let line = lines[lineFrom];
+				let column = cursor.columnFrom;
 
-				var remainingLine = line.slice(0, cursor.columnFrom);
+				let remainingLine = line.slice(0, cursor.columnFrom);
 
 				// find remaining line first non white space character
-				var firstNonWhiteIndex = -1;
-				var firstNonWhiteCode = -1;
-				for(var j = 0; j < remainingLine.length && firstNonWhiteIndex === -1; j++)
+				let firstNonWhiteIndex = -1;
+				let firstNonWhiteCode = -1;
+				for(let j = 0; j < remainingLine.length && firstNonWhiteIndex === -1; j++)
 				{
-					var c = remainingLine[j];
+					let c = remainingLine[j];
 					switch(c)
 					{
 						case 9: // Tab
@@ -650,7 +644,7 @@ function Pane(_Hydrogen)
 						let pr = new Uint32Array(prepend.length + 1);
 						pr.set(prepend);
 						// pr.set(_Document._TabCodePoint, prepend.length);
-						pr[prepend.length] = _Document.tabCode;
+						pr[prepend.length] = this._Document.tabCode;
 						prepend = pr;
 					}
 				}
@@ -668,25 +662,25 @@ function Pane(_Hydrogen)
 			}
 		}
 
-		_EnsureCursorVisible();
+		this._EnsureCursorVisible();
 	}
 
-	function _DeleteSelection()
+	_DeleteSelection()
 	{
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var c = _Cursors[i];
+			let c = this._Cursors[i];
 			console.log(i, c.serialize());
 		}
-		var lines = _Document.lines;
-		for(var i = _Cursors.length-1; i >= 0; i--)
+		let lines = this._Document.lines;
+		for(let i = this._Cursors.length-1; i >= 0; i--)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 
-			var lineFrom = cursor.lineFrom;
-			var lineTo = cursor.lineTo;
+			let lineFrom = cursor.lineFrom;
+			let lineTo = cursor.lineTo;
 
-			var columnChange = 0;
+			let columnChange = 0;
 			if(lineFrom == lineTo)
 			{
 				// ---XXXX----
@@ -714,19 +708,19 @@ function Pane(_Hydrogen)
 				lines[lineFrom] = new Uint32Array(start.length + end.length);
 				lines[lineFrom].set(start);
 				lines[lineFrom].set(end, start.length);
-				let dbg = _ConvertToText(lines[lineFrom]); // TODO remove: for debugging purposes only 
+				let dbg = this._ConvertToText(lines[lineFrom]); // TODO remove: for debugging purposes only 
 
 				columnChange = start.length - cursor.columnTo;
 
-				var rem = lineTo-lineFrom;
+				let rem = lineTo-lineFrom;
 				lines.splice(lineFrom+1, rem);
 
 	//			cursor.place(lineFrom, start.length);
 			}
 /*
-			for(var j = i+1; j < _Cursors.length; j++)
+			for(let j = i+1; j < _Cursors.length; j++)
 			{
-				var nextCursor = _Cursors[j];
+				let nextCursor = _Cursors[j];
 				if(nextCursor.lineFrom == lineFrom)
 			}*/
 
@@ -734,15 +728,15 @@ function Pane(_Hydrogen)
 		}
 
 		// Now fix up the cursors.
-		var linesRemoved = 0;
-		var lastLine = -1;
-		var columnsRemoved = 0;
-		for(var i = 0; i < _Cursors.length; i++)
+		let linesRemoved = 0;
+		let lastLine = -1;
+		let columnsRemoved = 0;
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 
-			var lineFrom = cursor.lineFrom;
-			var lineTo = cursor.lineTo;
+			let lineFrom = cursor.lineFrom;
+			let lineTo = cursor.lineTo;
 			if(lineFrom !== lastLine)
 			{
 				columnsRemoved = 0;
@@ -750,7 +744,7 @@ function Pane(_Hydrogen)
 			lastLine = lineTo;
 			
 
-			var columnsRemovedThisIteration = 0;
+			let columnsRemovedThisIteration = 0;
 
 			if(lineFrom == lineTo)
 			{
@@ -761,27 +755,27 @@ function Pane(_Hydrogen)
 			}
 			else
 			{
-				var oldTo = cursor.columnTo;
+				let oldTo = cursor.columnTo;
 				console.log("PLACE CB", lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved, columnsRemoved, oldTo);
-				var columnsGained = cursor.columnFrom - columnsRemoved;
+				let columnsGained = cursor.columnFrom - columnsRemoved;
 				cursor.place(lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved);
-				var rem = lineTo-lineFrom;
+				let rem = lineTo-lineFrom;
 				linesRemoved += rem;
 				columnsRemoved = -columnsGained+oldTo;
 			}
 		}
 		/*
-		var linesRemoved = 0;
-		var lastLine = -1;
-		var columnsRemoved = 0;
-		for(var i = 0; i < _Cursors.length; i++)
+		let linesRemoved = 0;
+		let lastLine = -1;
+		let columnsRemoved = 0;
+		for(let i = 0; i < _Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = _Cursors[i];
 
-			var lines = _Document.lines;
+			let lines = _Document.lines;
 
-			var lineFrom = cursor.lineFrom - linesRemoved;
-			var lineTo = cursor.lineTo - linesRemoved;
+			let lineFrom = cursor.lineFrom - linesRemoved;
+			let lineTo = cursor.lineTo - linesRemoved;
 			if(lineFrom !== lastLine)
 			{
 				columnsRemoved = 0;
@@ -789,12 +783,12 @@ function Pane(_Hydrogen)
 			lastLine = lineTo;
 			
 
-			var columnsRemovedThisIteration = 0;
+			let columnsRemovedThisIteration = 0;
 
 			if(lineFrom == lineTo)
 			{
 				// ---XXX----
-				var line = lines[lineFrom];
+				let line = lines[lineFrom];
 				lines[lineFrom] = line.slice(0, cursor.columnFrom - columnsRemoved) + line.slice(cursor.columnTo - columnsRemoved);
 				columnsRemovedThisIteration = cursor.columnTo - cursor.columnFrom;
 			}
@@ -803,19 +797,19 @@ function Pane(_Hydrogen)
 				// ---XXXXXX
 				// XXXXXXXXX
 				// XXXXX----
-				var start = lines[lineFrom].slice(0, cursor.columnFrom - columnsRemoved);
+				let start = lines[lineFrom].slice(0, cursor.columnFrom - columnsRemoved);
 				lines[lineFrom] = start + lines[lineTo].slice(cursor.columnTo);
 				columnsRemovedThisIteration = -columnsRemoved;//cursor.columnTo;
 
-				var rem = lineTo-lineFrom;
+				let rem = lineTo-lineFrom;
 				linesRemoved += rem;
 				lines.splice(lineFrom+1, rem);
 				console.log("LINES REMOVED", rem);
 
 				// Find any cursor that was on line lineTo
-				for(var j = i+1; j < _Cursors.length; j++)
+				for(let j = i+1; j < _Cursors.length; j++)
 				{
-					var cursorCheck = _Cursors[j];
+					let cursorCheck = _Cursors[j];
 					if(cursorCheck.lineFrom === lineTo)
 					{
 						if(cursorCheck.lineTo === lineTo)
@@ -834,27 +828,27 @@ function Pane(_Hydrogen)
 			cursor.place(lineFrom, cursor.columnFrom - columnsRemoved);
 			columnsRemoved += columnsRemovedThisIteration;
 		}*/
-		_ValidateCursors();
-		_MarkJustInput();
-		_Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		this._MarkJustInput();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _ReplaceSelectionWith(text)
+	_ReplaceSelectionWith(text)
 	{
-		_TriggerChange();
+		this._TriggerChange();
 		// Not really necessary to call this again, no?
-		_ValidateCursors();
+		this._ValidateCursors();
 
-		_DeleteSelection();
+		this._DeleteSelection();
 
 		if(text.length)
 		{
-			var lastLine = -1;
-			var columnsAdded = 0;
-			var linesAdded = 0;
+			let lastLine = -1;
+			let columnsAdded = 0;
+			let linesAdded = 0;
 
 			// Convert current text to UTF8 code point representation.
-			let insertTextLines = text.split(_Document.lineBreak);
+			let insertTextLines = text.split(this._Document.lineBreak);
 			let insertLines = [];
 			
 			for(let tl = 0; tl < insertTextLines.length; tl++)
@@ -869,18 +863,18 @@ function Pane(_Hydrogen)
 				insertLines.push(insertText);
 			}
 
-			// var insertLines = text.split(_Document.lineBreak);
+			// let insertLines = text.split(_Document.lineBreak);
 
-			for(var i = 0; i < _Cursors.length; i++)
+			for(let i = 0; i < this._Cursors.length; i++)
 			{
-				var cursor = _Cursors[i];
+				let cursor = this._Cursors[i];
 
-				var lines = _Document.lines;
+				let lines = this._Document.lines;
 				
-				var lineFrom = cursor.lineFrom + linesAdded;
-				var lineTo = cursor.lineTo + linesAdded;
+				let lineFrom = cursor.lineFrom + linesAdded;
+				let lineTo = cursor.lineTo + linesAdded;
 
-				var line = lines[lineFrom];
+				let line = lines[lineFrom];
 				if(lineFrom !== lastLine)
 				{
 					columnsAdded = 0;
@@ -930,14 +924,14 @@ function Pane(_Hydrogen)
 					lines[lineFrom].set(insertLines[0], start.length);
 
 					// lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertLines[0];// + line.slice(cursor.columnTo + columnsAdded);
-					for(var j = 1; j < insertLines.length-1; j++)
+					for(let j = 1; j < insertLines.length-1; j++)
 					{
 						let typedArrayInsert = new Uint32Array(insertLines[j].length);
 						typedArrayInsert.set(insertLines[j]);
 						lines.splice(lineFrom+j, 0, typedArrayInsert);
 					}
 
-					var lastInsertLineStart = insertLines[insertLines.length-1];
+					let lastInsertLineStart = insertLines[insertLines.length-1];
 					let lastInsertLineEnd = line.slice(cursor.columnTo + columnsAdded);
 					let lastInsertLine = new Uint32Array(lastInsertLineStart.length + lastInsertLineEnd.length);
 					lastInsertLine.set(lastInsertLineStart);
@@ -950,81 +944,81 @@ function Pane(_Hydrogen)
 			}
 		}
 
-		_EnsureCursorVisible();
+		this._EnsureCursorVisible();
 	}
 
-	function _ApplyJournalEntry(entry, cursors)
+	_ApplyJournalEntry(entry, cursors)
 	{
-		_Document.setContents(entry.text, true);
-		_Cursors.length = 0;
-		for(var i = 0; i < cursors.length; i++)
-    	{
-    		var cursorData = cursors[i];
-    		_Cursors.push(new Cursor(cursorData));
-    	}
-		_ClampScroll();
-		_ValidateCursors();
-		_EnsureCursorVisible();
-		_MarkJustInput();
-		_Hydrogen.scheduleUpdate();
+		this._Document.setContents(entry.text, true);
+		this._Cursors.length = 0;
+		for(let i = 0; i < cursors.length; i++)
+		{
+			let cursorData = cursors[i];
+			this._Cursors.push(new Cursor(cursorData));
+		}
+		this._ClampScroll();
+		this._ValidateCursors();
+		this._EnsureCursorVisible();
+		this._MarkJustInput();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _Undo()
+	undo()
 	{
-		_ChangeComplete();
-		if(_JournalIndex < 1)
+		this._ChangeComplete();
+		if(this._JournalIndex < 1)
 		{
 			return;
 		}
-		var entry = _Journal[_JournalIndex-1];
-		_JournalIndex--;
-		_ApplyJournalEntry(entry, entry.undoCursors);
+		let entry = this._Journal[this._JournalIndex-1];
+		this._JournalIndex--;
+		this._ApplyJournalEntry(entry, entry.undoCursors);
 		//console.log("UNDO", _Journal.length, _JournalIndex);
 	}
 
-	function _Redo()
+	redo()
 	{
-		_ChangeComplete();
-		if(_JournalIndex == _Journal.length-1)
+		this._ChangeComplete();
+		if(this._JournalIndex == this._Journal.length-1)
 		{
 			return;
 		}
-		var entry = _Journal[_JournalIndex+1];
-		_JournalIndex++;
-		_ApplyJournalEntry(entry, entry.redoCursors);
+		let entry = this._Journal[this._JournalIndex+1];
+		this._JournalIndex++;
+		this._ApplyJournalEntry(entry, entry.redoCursors);
 		//console.log("REDO", _Journal.length, _JournalIndex);
 	}
 
-	function _Tab(back)
+	doTab(back)
 	{
-		_TriggerChange();
-		_ValidateCursors();
+		this._TriggerChange();
+		this._ValidateCursors();
 
 		//_DeleteSelection();
 
-		var lastLine = -1;
-		var columnsAdded = 0;
-		var insertText = "\t";
-		var lines = _Document.lines;
+		let lastLine = -1;
+		let columnsAdded = 0;
+		let insertText = "\t";
+		let lines = this._Document.lines;
 
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 
 			if(cursor.hasRange)
 			{
-				var backedFirst = false;
-				var backedLast = false;
-				for(var j = cursor.lineFrom; j <= cursor.lineTo; j++)
+				let backedFirst = false;
+				let backedLast = false;
+				for(let j = cursor.lineFrom; j <= cursor.lineTo; j++)
 				{
 					if(j !== lastLine)
 					{
 						if(back)
 						{
-							var line = lines[j];
+							let line = lines[j];
 							if(line.length > 0)
 							{
-								var c = line[0];
+								let c = line[0];
 								switch(c)
 								{
 									case 32:
@@ -1065,10 +1059,10 @@ function Pane(_Hydrogen)
 			}
 			else
 			{
-				var lineFrom = cursor.lineFrom;
-				var lineTo = cursor.lineTo;
+				let lineFrom = cursor.lineFrom;
+				let lineTo = cursor.lineTo;
 
-				var line = lines[lineFrom];
+				let line = lines[lineFrom];
 				if(lineFrom !== lastLine)
 				{
 					columnsAdded = 0;
@@ -1081,7 +1075,7 @@ function Pane(_Hydrogen)
 					{
 						if(cursor.columnFrom !== 0)
 						{
-							var c = line[cursor.columnFrom-1];
+							let c = line[cursor.columnFrom-1];
 							switch(c)
 							{
 								case 32:
@@ -1099,7 +1093,7 @@ function Pane(_Hydrogen)
 						}
 						else
 						{
-							var c = line[cursor.columnFrom];
+							let c = line[cursor.columnFrom];
 							switch(c)
 							{
 								case 32:
@@ -1132,20 +1126,20 @@ function Pane(_Hydrogen)
 			}
 		}
 
-		_EnsureCursorVisible();
-		_Hydrogen.scheduleUpdate();
+		this._EnsureCursorVisible();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _Delete()
+	doDelete()
 	{
-		_TriggerChange();
-		var lines = _Document.lines;
-		for(var i = 0; i < _Cursors.length; i++)
+		this._TriggerChange();
+		let lines = this._Document.lines;
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 			if(!cursor.hasRange)
 			{
-				var line = lines[cursor.lineFrom];
+				let line = lines[cursor.lineFrom];
 				if(cursor.columnFrom < line.length)
 				{
 					cursor.span(cursor.lineFrom, cursor.columnFrom, cursor.lineFrom, cursor.columnFrom+1);
@@ -1156,33 +1150,33 @@ function Pane(_Hydrogen)
 				}
 			}
 		}
-		_DeleteSelection();
+		this._DeleteSelection();
 		/*
-		var nonRangeCursors = [];
-		for(var i = 0; i < _Cursors.length; i++)
+		let nonRangeCursors = [];
+		for(let i = 0; i < _Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = _Cursors[i];
 			if(!cursor.hasRange)
 			{
 				nonRangeCursors.push(cursor);
 			}
 		}
 		_DeleteSelection();
-		var lines = _Document.lines;
-		var removedLines = 0;
-		for(var i = 0; i < nonRangeCursors.length; i++)
+		let lines = _Document.lines;
+		let removedLines = 0;
+		for(let i = 0; i < nonRangeCursors.length; i++)
 		{
-			var cursor = nonRangeCursors[i];
-			var lineFrom = cursor.lineFrom - removedLines;
-			var line = lines[lineFrom];
-			var column = cursor.columnFrom;
+			let cursor = nonRangeCursors[i];
+			let lineFrom = cursor.lineFrom - removedLines;
+			let line = lines[lineFrom];
+			let column = cursor.columnFrom;
 
 			if(column === line.length)
 			{
 				if(lineFrom < lines.length)
 				{
-					var nextLine = lines[lineFrom+1];
-					var nextLineLength = nextLine.length;
+					let nextLine = lines[lineFrom+1];
+					let nextLineLength = nextLine.length;
 					lines[lineFrom] += nextLine;
 					lines.splice(lineFrom+1, 1);
 					removedLines++;
@@ -1196,24 +1190,24 @@ function Pane(_Hydrogen)
 			}
 		}*/
 
-		_EnsureCursorVisible();
+		this._EnsureCursorVisible();
 	}
 
-	function _OnKeyPress(evt)
+	onKeyPress(evt)
 	{
 		console.log("KEY PRESS", evt.keyCode, evt);
 		
 		switch(evt.keyCode)
 		{
 			case 13: // Enter
-				_Enter();
+				this._Enter();
 				return true;
 		}
 
 		if(evt.charCode)
 		{
-			var str = String.fromCharCode(evt.charCode);
-			_ReplaceSelectionWith(str);
+			let str = String.fromCharCode(evt.charCode);
+			this._ReplaceSelectionWith(str);
 			//console.log(str);
 			return true;
 		}
@@ -1221,189 +1215,191 @@ function Pane(_Hydrogen)
 		return false;
 	}
 
-	function _OnMouseUp(evt, rx, ry)
+	@bind
+	onMouseUp(evt, rx, ry)
 	{
-		_IsDragging = false;
-		_ScrollYVelocity = 0;
-		_ValidateCursors();
-		_EnsureCursorVisible(true);
-		_Hydrogen.scheduleUpdate();
+		this._IsDragging = false;
+		this._ScrollYVelocity = 0;
+		this._ValidateCursors();
+		this._EnsureCursorVisible(true);
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _OnMouseWheel(evt)
+	@bind
+	onMouseWheel(evt)
 	{
-		_ScrollY -= evt.deltaY / 2.0;
-		_ScrollX -= evt.deltaX / 2.0;
+		this._ScrollY -= evt.deltaY / 2.0;
+		this._ScrollX -= evt.deltaX / 2.0;
 
-		_ClampScroll();
-		_ScrollYVelocity = 0;
-		_Hydrogen.scheduleUpdate();
+		this._ClampScroll();
+		this._ScrollYVelocity = 0;
+		this._Hydrogen.scheduleUpdate();
 	}
 
 
-	function _MoveCursors(x, y, span, noWrap)
+	_MoveCursors(x, y, span, noWrap)
 	{
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
-			cursor.move(x, y, _Document, span, noWrap);
+			let cursor = this._Cursors[i];
+			cursor.move(x, y, this._Document, span, noWrap);
 			if(x !== 0)
 			{
-				cursor.setPlacedColumn(_Document);
+				cursor.setPlacedColumn(this._Document);
 			}
 		}
-		_ValidateCursors();
-		_EnsureCursorVisible(true);
-		_MarkJustInput();
-		_Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		this._EnsureCursorVisible(true);
+		this._MarkJustInput();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _CursorUp(span)
+	cursorUp(span)
 	{
-		_MoveCursors(0, -1, span);	
+		this._MoveCursors(0, -1, span);	
 	}
 
-	function _CursorDown(span)
+	cursorDown(span)
 	{
-		_MoveCursors(0, 1, span);	
+		this._MoveCursors(0, 1, span);	
 	}
 
-	function _CursorLeft(span)
+	cursorLeft(span)
 	{
-		_MoveCursors(-1, 0, span);
+		this._MoveCursors(-1, 0, span);
 	}
 
-	function _CursorRight(span)
+	cursorRight(span)
 	{
-		_MoveCursors(1, 0, span);
+		this._MoveCursors(1, 0, span);
 	}
 
-	function _CursorWordLeft(span)
+	cursorWordLeft(span)
 	{
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
-			cursor.wordBoundary(-1, _Document,span); 
+			let cursor = this._Cursors[i];
+			cursor.wordBoundary(-1, this._Document,span); 
 		}
-		_ValidateCursors();
-		_EnsureCursorVisible(true);
-		_Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		this._EnsureCursorVisible(true);
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _CursorWordRight(span)
+	cursorWordRight(span)
 	{
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
-			cursor.wordBoundary(1, _Document, span);
+			let cursor = this._Cursors[i];
+			cursor.wordBoundary(1, this._Document, span);
 		}
-		_ValidateCursors();
-		_EnsureCursorVisible(true);
-		_MarkJustInput();
-		_Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		this._EnsureCursorVisible(true);
+		this._MarkJustInput();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _CursorHome(span)
+	cursorHome(span)
 	{
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
-			cursor.home(_Document, span);
+			let cursor = this._Cursors[i];
+			cursor.home(this._Document, span);
 		}
-		_ValidateCursors();
-		_EnsureCursorVisible(true);
-		_MarkJustInput();
-		_Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		this._EnsureCursorVisible(true);
+		this._MarkJustInput();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _CursorEnd(span)
+	cursorEnd(span)
 	{
-		_MoveCursors(Number.MAX_SAFE_INTEGER, 0, span, true);
+		this._MoveCursors(Number.MAX_SAFE_INTEGER, 0, span, true);
 	}
 
-	function _CursorPageDown(span)
+	cursorPageDown(span)
 	{
-		var y = _Document.lines.length-1;
-		var x =  _Document.lines[y].length;
-		for(var i = 0; i < _Cursors.length; i++)
+		let y = this._Document.lines.length-1;
+		let x =  this._Document.lines[y].length;
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
-			cursor.moveTo(x, y, _Document, span);
+			let cursor = this._Cursors[i];
+			cursor.moveTo(x, y, this._Document, span);
 		}
-		_ValidateCursors();
-		_EnsureCursorVisible(true);
-		_MarkJustInput();
-		_Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		this._EnsureCursorVisible(true);
+		this._MarkJustInput();
+		this._Hydrogen.scheduleUpdate();
 	}
 
-	function _ClearJustInput()
+	_ClearJustInput()
 	{
-		clearTimeout(_JustInputTimeout);
-		_JustInputTimeout = null;
-		if(_JustInput)
+		clearTimeout(this._JustInputTimeout);
+		this._JustInputTimeout = null;
+		if(this._JustInput)
 		{
-			_JustInput = false;
-			_UpdateBlinkState();
+			this._JustInput = false;
+			this._UpdateBlinkState();
 		}
 	}
 
-	function _MarkJustInput()
+	_MarkJustInput()
 	{
-		if(!_JustInput)
+		if(!this._JustInput)
 		{
-			_JustInput = true;
-			_UpdateBlinkState();
+			this._JustInput = true;
+			this._UpdateBlinkState();
 		}
-		clearTimeout(_JustInputTimeout);
-		_JustInputTimeout = setTimeout(_ClearJustInput, 1000);
+		clearTimeout(this._JustInputTimeout);
+		this._JustInputTimeout = setTimeout(this._ClearJustInput, 1000);
 	}
 
-	function _CursorPageUp(span)
+	cursorPageUp(span)
 	{
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
-			cursor.moveTo(0, 0, _Document, span);
+			let cursor = this._Cursors[i];
+			cursor.moveTo(0, 0, this._Document, span);
 		}
-		_ValidateCursors();
-		_EnsureCursorVisible(true);
-		_Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		this._EnsureCursorVisible(true);
+		this._Hydrogen.scheduleUpdate();
 	}
 
 
-	function _ClampScroll()
+	_ClampScroll()
 	{
-		if(!_Font.isReady || !_Document)
+		if(!this._Font.isReady || !this._Document)
 		{
 			return;
 		}
-		var maxLabelWidth = _Document.maxLineDigits * _Font.horizontalAdvance;
-		var gutter = _GutterPadding + maxLabelWidth + _GutterPadding;
+		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
 
-		var paneWidth = _Width - gutter;
-		var paneHeight = _Height;
+		let paneWidth = this._Width - gutter;
+		let paneHeight = this._Height;
 
-		var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
-		var contentHeight = _Document.lines.length * lineHeight;
-		var contentWidth = _Document.maxLineLength * _Font.horizontalAdvance;
+		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		let contentHeight = this._Document.lines.length * lineHeight;
+		let contentWidth = this._Document.maxLineLength * this._Font.horizontalAdvance;
 
-		var minScrollY = Math.min(0, paneHeight - contentHeight - 100);
-		var minScrollX = Math.min(0, paneWidth - contentWidth);
+		let minScrollY = Math.min(0, paneHeight - contentHeight - 100);
+		let minScrollX = Math.min(0, paneWidth - contentWidth);
 
-		_ScrollY = Math.max(minScrollY, Math.min(0, _ScrollY));
-		_ScrollX = Math.max(minScrollX, Math.min(0, _ScrollX));
+		this._ScrollY = Math.max(minScrollY, Math.min(0, this._ScrollY));
+		this._ScrollX = Math.max(minScrollX, Math.min(0, this._ScrollX));
 	}
 
-	function _LineWidth(line, start, end)
+	_LineWidth(line, start, end)
 	{
-		var columnWidth = _Font.horizontalAdvance;
-		var t = line;
-		var tl = t.length;
-		var x = 0;
-		var numTabSpaces = _Document.numTabSpaces;
-		for(var i = start; i < end; i++)
+		let columnWidth = this._Font.horizontalAdvance;
+		let t = line;
+		let tl = t.length;
+		let x = 0;
+		let numTabSpaces = this._Document.numTabSpaces;
+		for(let i = start; i < end; i++)
 		{
-			var c = t[i];
+			let c = t[i];
 			switch(c)
 			{
 				case 9:
@@ -1418,23 +1414,23 @@ function Pane(_Hydrogen)
 		return x;
 	}
 
-	function _VisibleColumns(line, start, end)
+	_VisibleColumns(line, start, end)
 	{
-		var columnWidth = _Font.horizontalAdvance;
-		var t = line;
-		var tl = t.length;
+		let columnWidth = this._Font.horizontalAdvance;
+		let t = line;
+		let tl = t.length;
 
-		var first = -1;
-		var firstX = 0;
-		var last = tl-1;
-		var x = 0;
+		let first = -1;
+		let firstX = 0;
+		let last = tl-1;
+		let x = 0;
 
-		var numTabSpaces = _Document.numTabSpaces;
+		let numTabSpaces = this._Document.numTabSpaces;
 
-		for(var i = 0; i < tl; i++)
+		for(let i = 0; i < tl; i++)
 		{
-			var c = t[i];
-			var lx = x;
+			let c = t[i];
+			let lx = x;
 			switch(c)
 			{
 				case 9:
@@ -1458,9 +1454,9 @@ function Pane(_Hydrogen)
 			first = t.length;
 			firstX = x;
 		}
-		for(var i = first; i < tl; i++)
+		for(let i = first; i < tl; i++)
 		{
-			var c = t[i];
+			let c = t[i];
 			switch(c)
 			{
 				case 9:
@@ -1481,133 +1477,136 @@ function Pane(_Hydrogen)
 		return {first:first, firstX:firstX, last:last};
 	}
 
-	function _GetDomCursor(index)
+	_GetDomCursor(index)
 	{
-		var domCursor = null;
-		if(index < _DomCursors.length)
+		let domCursor = null;
+		if(index < this._DomCursors.length)
 		{
-			domCursor = _DomCursors[index];
+			domCursor = this._DomCursors[index];
 		}
 		else
 		{
-			var cursorHeight = _Font.lineHeight;
+			let cursorHeight = this._Font.lineHeight;
 			domCursor = document.createElement("div");
-			domCursor.style.backgroundColor = "rgb(" + Math.round(_CursorColor[0] * 255) + "," + Math.round(_CursorColor[1] * 255) + "," + Math.round(_CursorColor[2] * 255) + ")";
+			domCursor.style.backgroundColor = "rgb(" + Math.round(this._CursorColor[0] * 255) + "," + Math.round(this._CursorColor[1] * 255) + "," + Math.round(this._CursorColor[2] * 255) + ")";
 			domCursor.style.height = cursorHeight + "px";
-			_DomCursors.push(domCursor);
-			var cursorsElement = document.getElementById("cursors");
+			this._DomCursors.push(domCursor);
+			let cursorsElement = document.getElementById("cursors");
 			cursorsElement.appendChild(domCursor);
 		}
 
 		return domCursor;
 	}
 
-	function _UpdateBlinkState()
+	_UpdateBlinkState()
 	{
-		if(!_UseDomCursor)
+		if(!this._UseDomCursor)
 		{
 			return;
 		}
 
-		var shouldDisable = _IsDragging || _JustInput;
-		if(shouldDisable != _IsBlinkingDisabled)
+		let shouldDisable = this._IsDragging || this._JustInput;
+		if(shouldDisable != this._IsBlinkingDisabled)
 		{
-			for(var i = 0; i < _Cursors.length; i++)
+			let domCursor, cursor;
+			for(let i = 0; i < this._Cursors.length; i++)
 			{
-				var cursor = _Cursors[i];
+				cursor = this._Cursors[i];
 				
-				var domCursor = _GetDomCursor(i);
+				domCursor = this._GetDomCursor(i);
 			}
 			domCursor.style.animation = shouldDisable ? "none" : null;
-			_IsBlinkingDisabled = shouldDisable;
+			this._IsBlinkingDisabled = shouldDisable;
 		}
 	}
 
-	function _Advance(elapsed)
+	@bind
+	advance(elapsed)
 	{
-		if(_ScrollYVelocity != 0.0)
+		if(this._ScrollYVelocity != 0.0)
 		{
-			_ScrollY += _ScrollYVelocity * elapsed;
-			_ClampScroll();
-			if(_IsDragging)
+			this._ScrollY += this._ScrollYVelocity * elapsed;
+			this._ClampScroll();
+			if(this._IsDragging)
 			{
-				_DragCursor(Math.min(_Width, Math.max(0, _MouseX)), Math.min(_Height, Math.max(0, _MouseY)));
+				this._DragCursor(Math.min(this._Width, Math.max(0, this._MouseX)), Math.min(this._Height, Math.max(0, this._MouseY)));
 			}
 		}
 
-		var targetScrollY = Math.round(_ScrollY);
-		var targetScrollX = Math.round(_ScrollX);
+		let targetScrollY = Math.round(this._ScrollY);
+		let targetScrollX = Math.round(this._ScrollX);
 
-		var dx = targetScrollX - _RenderScrollX;
-		var dy = targetScrollY - _RenderScrollY;
+		let dx = targetScrollX - this._RenderScrollX;
+		let dy = targetScrollY - this._RenderScrollY;
 
-		var keepRendering = false;
+		let keepRendering = false;
 
-		var ds = Math.min(1.0, elapsed*30);
+		let ds = Math.min(1.0, elapsed*30);
 
 		if(Math.abs(dx) < 0.2)
 		{
-			_RenderScrollX = targetScrollX;
+			this._RenderScrollX = targetScrollX;
 		}
 		else
 		{
-			_RenderScrollX += dx * ds;
+			this._RenderScrollX += dx * ds;
 			keepRendering = true;
 		}
 		if(Math.abs(dy) < 0.2)
 		{
-			_RenderScrollY = targetScrollY;
+			this._RenderScrollY = targetScrollY;
 		}
 		else
 		{
-			_RenderScrollY += dy * ds;
+			this._RenderScrollY += dy * ds;
 			keepRendering = true;
 		}
 
 		return keepRendering;
 	}
 
-	function _Draw(graphics)
+	@bind
+	draw(graphics)
 	{
-		if(!_Document)
+		if(!this._Document)
 		{
 			return;
 		}
 		//_ScrollX -= 0.2;
 		//drawCount++;
 
-		graphics.setTabSpaces(_Document.numTabSpaces);
-		var lines = _Document.lines;
+		graphics.setTabSpaces(this._Document.numTabSpaces);
+		let lines = this._Document.lines;
 
-		var maxLabelWidth = _Document.maxLineDigits * _Font.horizontalAdvance;
-		var gutter = _GutterPadding + maxLabelWidth + _GutterPadding;
+		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
 
-		var glyphMap = _Font.map;
-		var lineHeight = Math.round(_Font.lineHeight * _LineHeightScale);
-		var cursorHeight = _Font.lineHeight;
-		var maxDescender = _Font.maxDescender;
-		var baseLine = lineHeight + maxDescender;
+		let glyphMap = this._Font.map;
+		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		let cursorHeight = this._Font.lineHeight;
+		let maxDescender = this._Font.maxDescender;
+		let baseLine = lineHeight + maxDescender;
 
-		var renderScrollY = _RenderScrollY;
-		var renderScrollX = _RenderScrollX;
+		let renderScrollY = this._RenderScrollY;
+		let renderScrollX = this._RenderScrollX;
 		
-		var contentHeight = lines.length * lineHeight;
-		var visibleLines = Math.round(_Height / lineHeight) + 1;
-		var firstLine = Math.floor(-renderScrollY / lineHeight);
-		var lastLine = Math.min(firstLine + visibleLines, lines.length-1);
-		var firstLineOrigin = renderScrollY % lineHeight;
+		let contentHeight = lines.length * lineHeight;
+		let visibleLines = Math.round(this._Height / lineHeight) + 1;
+		let firstLine = Math.floor(-renderScrollY / lineHeight);
+		let lastLine = Math.min(firstLine + visibleLines, lines.length-1);
+		let firstLineOrigin = renderScrollY % lineHeight;
 
-		var columnWidth = _Font.horizontalAdvance;
-		var visibleColumns = Math.round(_Width / columnWidth) + 1;
-		var y = _Y+firstLineOrigin;
+		let columnWidth = this._Font.horizontalAdvance;
+		let visibleColumns = Math.round(this._Width / columnWidth) + 1;
+		let y = this._Y+firstLineOrigin;
 
-		graphics.pushClip(_X, _Y, _Width, _Height);
+		graphics.pushClip(this._X, this._Y, this._Width, this._Height);
 
 		// Draw focused line backgrounds.
-		var lastCursorLine = -1;
-		for(var i = 0; i < _Cursors.length; i++)
+		let lastCursorLine = -1;
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 			if(cursor.hasRange)
 			{
 				continue;
@@ -1617,42 +1616,42 @@ function Pane(_Hydrogen)
 				continue;
 			}
 			lastCursorLine = cursor.lineFrom;
-			var startY = Math.round(_Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
-			graphics.drawRect(0, startY, _Width, lineHeight, 1.0, _HighlightColor);
+			let startY = Math.round(this._Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
+			graphics.drawRect(0, startY, this._Width, lineHeight, 1.0, this._HighlightColor);
 
 
 		}
 
 		// Draw cursors.
-		for(var i = 0; i < _Cursors.length; i++)
+		for(let i = 0; i < this._Cursors.length; i++)
 		{
-			var cursor = _Cursors[i];
+			let cursor = this._Cursors[i];
 			if(cursor.hasRange)
 			{
-				var currentLine = cursor.lineFrom;
-				var endLine = cursor.lineTo;
-				var columnStart = cursor.columnFrom;
+				let currentLine = cursor.lineFrom;
+				let endLine = cursor.lineTo;
+				let columnStart = cursor.columnFrom;
 
 				while(true)
 				{
-					var line = lines[currentLine];
+					let line = lines[currentLine];
 
-					var startY = Math.round(_Y + renderScrollY + currentLine * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
-					var startX = Math.max(gutter, _X + gutter + renderScrollX + _LineWidth(line, 0, columnStart));//columnStart * columnWidth;
-					var endX;
+					let startY = Math.round(this._Y + renderScrollY + currentLine * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
+					let startX = Math.max(gutter, this._X + gutter + renderScrollX + this._LineWidth(line, 0, columnStart));//columnStart * columnWidth;
+					let endX;
 
 					if(currentLine == endLine)
 					{
-						endX = _X + gutter + renderScrollX + _LineWidth(line, 0, cursor.columnTo);//cursor.columnTo * columnWidth;
+						endX = this._X + gutter + renderScrollX + this._LineWidth(line, 0, cursor.columnTo);//cursor.columnTo * columnWidth;
 					}
 					else
 					{
-						endX = _X + gutter + renderScrollX + _LineWidth(line, 0, line.length) + columnWidth;//(line.length+1) * columnWidth;
+						endX = this._X + gutter + renderScrollX + this._LineWidth(line, 0, line.length) + columnWidth;//(line.length+1) * columnWidth;
 					}
 
 					if(endX > startX)
 					{
-						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, _SelectionColor);
+						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, this._SelectionColor);
 					}
 
 					if(currentLine == endLine)
@@ -1665,59 +1664,59 @@ function Pane(_Hydrogen)
 			}
 			//else
 			//{
-			//	var startY = Math.round(_Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
+			//	let startY = Math.round(_Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
 			//	graphics.drawRect(0, startY, _Width, lineHeight, 1.0, _HighlightColor);
 			//}
-			var cursorY = _Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
-			var cursorX = _X + gutter + renderScrollX + _LineWidth(lines[cursor.line], 0, cursor.column);
-			if(cursorX+1 > gutter && !_UseDomCursor)
+			let cursorY = this._Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
+			let cursorX = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.line], 0, cursor.column);
+			if(cursorX+1 > gutter && !this._UseDomCursor)
 			{
-				graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, _CursorColor);
+				graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, this._CursorColor);
 			}
 
-			if(_UseDomCursor)
+			if(this._UseDomCursor)
 			{
-				var domCursor = _GetDomCursor(i);
+				let domCursor = this._GetDomCursor(i);
 
 				domCursor.style.display = cursorX+1 > gutter ? null : "none";
 				domCursor.style.transform = "translate(" + cursorX + "px, " + cursorY + "px)";
 			}
 		}
 
-		if(_UseDomCursor)
+		if(this._UseDomCursor)
 		{
-			for(var i = _Cursors.length; i < _DomCursors.length; i++)
+			for(let i = this._Cursors.length; i < this._DomCursors.length; i++)
 			{
-				_DomCursors[i].style.display = "none";
+				this._DomCursors[i].style.display = "none";
 			}
 		}
 
-		graphics.pushClip(_X+gutter, _Y, _Width-gutter, _Height);
-		if(graphics.setFont(_Font, 1.0, _CodeColor))
+		graphics.pushClip(this._X+gutter, this._Y, this._Width-gutter, this._Height);
+		if(graphics.setFont(this._Font, 1.0, this._CodeColor))
 		{	
-			for(var i = firstLine; i <= lastLine; i++)
+			for(let i = firstLine; i <= lastLine; i++)
 			{
-				var line = lines[i];
+				let line = lines[i];
 
-				//var firstColumn = Math.floor(-renderScrollX / columnWidth);
-				//var lastColumn = firstColumn + visibleColumns;
-				//var firstColumnOrigin = renderScrollX % columnWidth;
+				//let firstColumn = Math.floor(-renderScrollX / columnWidth);
+				//let lastColumn = firstColumn + visibleColumns;
+				//let firstColumnOrigin = renderScrollX % columnWidth;
 
-				var visRange = _VisibleColumns(line, -renderScrollX, _Width - renderScrollX);
+				let visRange = this._VisibleColumns(line, -renderScrollX, this._Width - renderScrollX);
 
-				var x = visRange.firstX;//_X+gutter+firstColumnOrigin;
+				let x = visRange.firstX;//this._X+gutter+firstColumnOrigin;
 
 				graphics.drawText(renderScrollX+gutter+x, y+baseLine, line, visRange.first, visRange.last);
 				y += lineHeight;
 			}
 			graphics.popClip();
-			graphics.pushClip(_X, _Y, gutter, _Height);
+			graphics.pushClip(this._X, this._Y, gutter, this._Height);
 			// Draw lines.
-			if(graphics.setFont(_Font, 1.0, _LineLabelColor))
+			if(graphics.setFont(this._Font, 1.0, this._LineLabelColor))
 			{	
-				var x = _X + _GutterPadding + maxLabelWidth;
-				var y = _Y + firstLineOrigin;
-				for(var i = firstLine; i <= lastLine; i++)
+				let x = this._X + this._GutterPadding + maxLabelWidth;
+				let y = this._Y + firstLineOrigin;
+				for(let i = firstLine; i <= lastLine; i++)
 				{
 					let lineNumberLabel = (i+1).toString();
 					let label = new Uint32Array(lineNumberLabel.length);
@@ -1726,43 +1725,44 @@ function Pane(_Hydrogen)
 						label[ln] = lineNumberLabel.codePointAt(ln);
 					}
 
-					graphics.drawText(x - (label.length*_Font.horizontalAdvance), y+baseLine, label);
+					graphics.drawText(x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
 
 					y += lineHeight;
 				}
 			}
 		}
 		graphics.popClip();
-		graphics.popClip();
-		
+		graphics.popClip();	
 	}
 
-	this.place = _Place;
-	this.openFile = _OpenFile;
-	this.onMouseWheel = _OnMouseWheel;
-	this.onMouseDown = _OnMouseDown;
-	this.onMouseMove = _OnMouseMove;
-	this.onMouseUp = _OnMouseUp;
-	this.onKeyPress = _OnKeyPress;
-	this.onPaste = _OnPaste;
-	this.onCopy = _OnCopy;
-	this.onCut = _OnCut;
-	this.setFont = _SetFont;
-	this.advance = _Advance;
-	this.draw = _Draw;
-	this.undo = _Undo;
-	this.redo = _Redo;
-	this.doDelete = _Delete;
-	this.doTab = _Tab;
-	this.backspace = _Backspace;
-	this.cursorUp = _CursorUp;
-	this.cursorDown = _CursorDown;
-	this.cursorLeft = _CursorLeft;
-	this.cursorRight = _CursorRight;
-	this.cursorWordLeft = _CursorWordLeft;
-	this.cursorWordRight = _CursorWordRight;
-	this.cursorHome = _CursorHome;
-	this.cursorEnd = _CursorEnd;
-	this.cursorPageDown = _CursorPageDown;
-	this.cursorPageUp = _CursorPageUp;
+	get x()
+    {
+        return this._X;
+    }
+
+    get y()
+    {
+        return this._Y;
+    }
+
+    get x2()
+    {
+        return this._X2;
+    }
+
+    get y2()
+    {
+        return this._Y2;
+    }
+
+    get width()
+    {
+        return this._Width;
+    }
+
+    get height()
+    {
+        return this._Height;
+    }
+
 }

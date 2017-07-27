@@ -50,12 +50,12 @@
     <script src="Scripts/acorn_loose.js"></script>
     <script src="Scripts/RequestAnimFrame.js"></script>
     <script src="Scripts/glMatrix.js"></script>
-    <script src="Scripts/Graphics.js"></script>
-    <script src="Scripts/CachedFont.js"></script>
-    <script src="Scripts/Hydrogen.js"></script>
-    <script src="Scripts/Cursor.js"></script>
-    <script src="Scripts/Pane.js"></script>
-    <script src="Scripts/Document.js"></script>
+    <!-- <script src="Scripts/Graphics.js"></script> -->
+    <!-- <script src="Scripts/CachedFont.js"></script> -->
+    <!-- <script src="Scripts/Hydrogen.js"></script> -->
+    <!-- <script src="Scripts/Cursor.js"></script> -->
+    <!-- <script src="Scripts/Pane.js"></script> -->
+    <!-- <script src="Scripts/Document.js"></script> -->
     <script src="Scripts/Parser.js"></script>
     <script src="Scripts/Highlighter.js"></script>
 
@@ -252,8 +252,11 @@
         }
     </script>
 </head>
-<body onload="initialize();">
-    <canvas id="canvas" style="position:absolute"></canvas>
+<!-- <body onload="initialize();"> -->
+<body>
+    <!-- <canvas id="canvas" style="position:absolute"></canvas> -->
+    <div id="container"></div>
+    <script src="build/bundle.js" type="text/javascript"></script>
     <div id="cursors"></div>
 </body>
 </html>
