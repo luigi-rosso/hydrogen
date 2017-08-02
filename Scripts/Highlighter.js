@@ -36,7 +36,7 @@ export default class Highlighter
 			},
 			{
 				name: "regex",
-				pattern: /\/(.+\/)([gimuy])?/g,
+				pattern: /\/(?:(?!\*))(.+\/)([gimuy])?/g,
 				paint: function(match, lineNo)
 				{
 					/* This match is made of two groups
@@ -153,7 +153,6 @@ export default class Highlighter
 			return;
 		}
 
-		
 		let text = this.codePointsToText(lines);
 		
 		this._Lines = lines;
@@ -173,8 +172,7 @@ export default class Highlighter
 					{
 						re.paint(match, i);
 					}
-					else 
-					for(let j = match.index; j < re.pattern.lastIndex; j++)
+					else for(let j = match.index; j < re.pattern.lastIndex; j++)
 					{
 						let c = lines[i][j];
 						lines[i][j] = this.colorChar(c, re.color);
@@ -186,6 +184,42 @@ export default class Highlighter
 		}
 		
 		return 0;
+	}
+
+	PaintLine(lines, lineNo)
+	{
+		let start = Date.now();
+		if(!lines || !lines.length || lineNo === undefined)
+		{
+			console.log("CAN'T PAINT LINE.");
+			return;
+		}
+		
+		this._Lines = lines;
+		
+		let line = lines[lineNo];
+		let textLine = this.codePointsToText([line])[0];
+
+		for(let re of this._RegExes)
+		{	
+			let match = re.pattern.exec(textLine);
+			while(match)
+			{
+				// console.log("LINE MATCH:", re.name, match);
+				if(re.paint)
+				{
+					re.paint(match, lineNo);
+				}
+				else for(let j = match.index; j < re.pattern.lastIndex; j++)
+				{
+					let c = line[j];
+					line[j] = this.colorChar(c, re.color);
+				}
+
+				match = re.pattern.exec(textLine);
+			}
+		}
+		console.log("PAINTED SINGLE LINE IN:", Date.now() - start);
 	}
 
 	/*
@@ -204,7 +238,7 @@ export default class Highlighter
 			{
 				// Clear old color index
 				let codePoint = (line[j] << 11) >>> 11;
-	        	let char = String.fromCodePoint(codePoint);
+				let char = String.fromCodePoint(codePoint);
 				t += char;
 			}
 

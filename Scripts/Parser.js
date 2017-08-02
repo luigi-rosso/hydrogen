@@ -10,17 +10,19 @@ INPUT:
 OUTPUT: 
 	Masked Uint32Arrays containing the Color Codes for each token in the document
 */
-
 export default class Parser
 {
 	constructor()
 	{
 		this._CodePointsPunctuation = new Set([33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 58, 59, 60, 61, 62, 63, 91, 92, 93, 94, 96, 123, 124, 125, 126]);
-		this._Acorn = window.acorn;
 		this._Lines;
+		this._Acorn = require("acorn");
+		this._AcornLoose = require("acorn/dist/acorn_loose");
+		this._Walk = require("acorn/dist/walk");
+		this._AST;
 	}
 	
-	process(lines)
+	process(lines, lineNo)
 	{
 		this._Lines = lines; // Store|Override the lines locally
 		
@@ -45,8 +47,39 @@ export default class Parser
 
 		try
 		{
-			let program = acorn.parse_dammit(text, {locations:true});
-			this._ParseTree(program);
+			// TODO move into imports
+			this._AST = this._AcornLoose.parse_dammit(text, { locations:true, sourceType:"module" });
+			let start = Date.now();
+			if(lineNo === undefined)
+			{
+				// Do full paint
+			}
+			else
+			{
+				// this.processAtLine(lineNo);
+			}
+			// let res = this._Walk.findNodeAround(this._AST, 563, "BlockStatement");
+			// console.log("Found", res, "in", Date.now() - start);
+			// this._HandleNode(res.node);
+			let self = this;
+			/*this._Walk.simple(this._AST, 
+				{
+					Literal(node) 
+					{
+						self._HandleLiteral(node);
+					}
+				});*/
+			/* this._Walk.full(this._AST, function(node, state, type)
+			{
+				// console.log("FULL WALK", node, state, type);
+				if(node.loc.start.line === 118)
+				{
+					let around = self._Walk.findNodeAround(self._AST, node.start, "BlockStatement");
+					// console.log(around);
+					self._HandleNode(around.node);
+				}
+			}); */
+			// this._ParseTree(this._AST);
 		}
 		catch(e)
 		{
@@ -106,6 +139,24 @@ export default class Parser
 
 	}
 
+	processAtLine(lineNo)
+	{
+		let self = this;
+		let painted = false;
+		this._Walk.full(this._AST, function(node, state, type)
+			{
+				// console.log("FULL WALK", node, state, type);
+				if(!painted && node.loc.start.line === lineNo)
+				{
+					let around = self._Walk.findNodeAround(self._AST, node.start, "BlockStatement");
+					// console.log(around);
+					self._HandleNode(around.node);
+					painted = true;
+				}
+			});
+
+	}
+
 	_ParseTree(tree)
 	{
 		if(tree.body.length < 1 || tree.type !== "Program")
@@ -130,6 +181,7 @@ export default class Parser
 		switch(curType)
 		{
 			case "FunctionDeclaration":
+			{
 				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "function", 3);
 				
 				if(node.id)
@@ -147,11 +199,13 @@ export default class Parser
 				this._HandleNode(body);
 
 				break;
+			}
 			case "BlockStatement":
 				for(let i = 0; i < node.body.length; i++)
 				{
 					let s = node.body[i];
-					this._HandleNode(s);
+					this.
+					_HandleNode(s);
 				}
 
 				break;
@@ -254,6 +308,7 @@ export default class Parser
 				break;
 
 			case "SwitchStatement":
+			{
 				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "switch", 3);
 
 				this._HandleExpression(node.discriminant);
@@ -264,8 +319,9 @@ export default class Parser
 						self._HandleNode(el);
 					});
 				break;
-
+			}
 			case "SwitchCase":
+			{
 				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "case", 3);
 				if(node.test) this._HandleExpression(node.test);
 
@@ -276,7 +332,7 @@ export default class Parser
 					});
 
 				break;
-
+			}
 			case "ThrowStatement":
 				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "throw", 4);
 
@@ -402,10 +458,18 @@ export default class Parser
 
 	_HandleLiteral(node)
 	{
+		// TODO Literals can also be RegEx (i.e. has property node.regex)
 		let startLine = node.loc.start.line - 1; // Lines are 1-indexed.
 		let endLine = node.loc.end.line - 1;
 		let startCol = node.loc.start.column;
 		let endCol = node.loc.end.column;
+		
+		let color = 1; // Light Green for Strings
+		let literalType = typeof node.value;
+		if(literalType === "number" || literalType === "boolean")
+		{
+			color = 2;
+		}
 
 		for(let i = startLine; i <= endLine; i++)
 		{
@@ -418,7 +482,7 @@ export default class Parser
 			for(let j = start; j < stop; j++)
 			{
 				let c = line[j];
-				c = this.colorChar(c, 1);
+				c = this.colorChar(c, color);
 				this._Lines[i][j] = c;
 			}
 		}
@@ -453,6 +517,12 @@ export default class Parser
 				this._HandleLiteral(node);
 				break;
 
+			case "Property":
+				this._HandleNode(node.key);
+				this._HandleExpression(node.value);
+				// TODO node.kind coloring
+				break;
+
 			case "ArrayExpression":
 				if(node.elements)
 				{
@@ -465,6 +535,7 @@ export default class Parser
 				break;
 
 			case "FunctionExpression":
+			{
 				if (node.id)
 				{
 					this._HandleNode(node.id); // Identifier Node
@@ -479,8 +550,10 @@ export default class Parser
 				this._HandleNode(node.body);
 
 				break;
-			
+			}
 			case "ArrowFunctionExpression":
+			{
+
 				if(node.id)
 				{
 					this._HandleExpression(node.id);
@@ -493,8 +566,9 @@ export default class Parser
 					});
 
 				break;
-
+			}
 			case "ClassExpression":
+			{
 				// TODO color class keyword
 				if(node.id)
 				{
@@ -517,7 +591,7 @@ export default class Parser
 					});
 
 				break;
-
+			}
 			case "TaggedTemplateExpression":
 				// TODO
 				break;
@@ -541,8 +615,9 @@ export default class Parser
 				break;
 
 			case "NewExpression":
+			{	
 				this.colorWord(node.loc.start.line - 1, node.loc.start.column, "new", 4);
-
+			
 				this._HandleExpression(node.callee, 2);
 
 				let self = this;
@@ -552,7 +627,9 @@ export default class Parser
 					});
 
 				break;
+			}
 			case "CallExpression":
+			{
 				this._HandleExpression(node.callee, 5);
 
 				let self = this;
@@ -562,7 +639,7 @@ export default class Parser
 					});
 
 				break;
-			
+			}
 			case "UnaryExpression":
 			case "UpdateExpression":
 				if(node.prefix)
@@ -638,19 +715,21 @@ export default class Parser
 				break;
 
 			case "SequenceExpression":
+			{
 				let self = this;
 				node.expressions.forEach(function(el)
 					{
 						self._HandleExpression(el);
 					});
 				break;
-
+			}
 			case "AssignmentPattern":
 				this._HandleNode(node.left);
 				this._HandleExpression(node.right);
 				break;
 
 			case "ArrayPattern":
+			{
 				// elements <: AssignmentPattern | Identifier | BindingPattern | RestElement | null
 				// BindingPattern = ArrayPattern | ObjectPattern
 				if(node.elements)
@@ -662,16 +741,17 @@ export default class Parser
 						});
 				}
 				break;
-
+			}
 			case "ObjectExpression":
 			case "ObjectPattern":
+			{
 				let self = this;
 				node.properties.forEach(function(el)
 					{
 						self._HandleExpression(el);
 					});
 				break;
-
+			}
 			default:
 				break;
 		}
@@ -688,7 +768,7 @@ export default class Parser
 			for(let j = 0; j < line.length; j++)
 			{
 				let codePoint = (line[j] << 11) >>> 11;
-            	let char = String.fromCodePoint(codePoint);
+				let char = String.fromCodePoint(codePoint);
 				textLines += char;
 			}
 

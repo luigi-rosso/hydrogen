@@ -11,7 +11,6 @@ class Main extends React.Component
 
 		this._IsDown = false;
 		this._Hydrogen;
-		console.log("Just built main!");
 	}
 
 	initialize(canvas)
@@ -19,9 +18,9 @@ class Main extends React.Component
         let self = this;
 
         let dropZone = document.body;
-        dropZone.addEventListener('dragover', this.handleDragOver, false);
-        dropZone.addEventListener('drop', this.handleFileSelect, false);
-        dropZone.addEventListener('paste', this.handlePaste, false);
+        dropZone.addEventListener("dragover", this.handleDragOver, false);
+        dropZone.addEventListener("drop", this.handleFileSelect, false);
+        dropZone.addEventListener("paste", this.handlePaste, false);
 
         this._Hydrogen = new Hydrogen(canvas);
 
@@ -43,24 +42,24 @@ class Main extends React.Component
         {
             self._IsDown = false;
         };
-   	}
+    }
 
-   	get isDown()
-   	{
-   		return this._IsDown;
-   	}
+    get isDown()
+    {
+		return this._IsDown;
+	}
 
-   	get hydrogen()
-   	{
-   		return this._Hydrogen;
-   	}
+	get hydrogen()
+	{
+		return this._Hydrogen;
+	}
 
-   	@bind
-   	handleDragOver(evt) 
+	@bind
+	handleDragOver(evt) 
     {
         evt.stopPropagation();
         evt.preventDefault();
-        evt.dataTransfer.dropEffect = 'copy';
+        evt.dataTransfer.dropEffect = "copy";
     }
 
     @bind
@@ -72,7 +71,7 @@ class Main extends React.Component
     @bind
     handleFileSelect(evt)
     {
-    	return;
+        return;
     }
 
 	@bind

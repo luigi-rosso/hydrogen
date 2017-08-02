@@ -1,4 +1,5 @@
 import bind from "bind";
+import {mat4} from "./glMatrix.js";
 
 export default class Graphics
 {
@@ -153,7 +154,7 @@ export default class Graphics
         ])), this._GL.DYNAMIC_DRAW);
 
         return true;
-    };
+    }
 
     _GetShader(id)
     {
@@ -380,21 +381,21 @@ export default class Graphics
             color = this._DefaultColor;
         }
 
-        for(var i = 0; i < 4; i++) this._ColorBuffer[i] = color[i];
+        for(let i = 0; i < 4; i++) this._ColorBuffer[i] = color[i];
 
-        var shader = this._SpriteShader;
+        let shader = this._SpriteShader;
         this._CurrentFont = font;
         this._CurrentFontMap = font.map;
 
         if(!font.vertexBuffer)
         {
             // Create buffer.
-            var vertices = new Float32Array(font.glyphBufferCount * 16);
-            var bufferIndex = 0;
-            var glyphs = font.glyphs;
-            for(var i = 0; i < glyphs.length; i++)
+            let vertices = new Float32Array(font.glyphBufferCount * 16);
+            let bufferIndex = 0;
+            let glyphs = font.glyphs;
+            for(let i = 0; i < glyphs.length; i++)
             {
-                var glyph = glyphs[i];
+                let glyph = glyphs[i];
 
                 if(glyph.w == 0 || glyph.h == 0)
                 {
@@ -402,7 +403,7 @@ export default class Graphics
                 }
 
                 glyph.bufferIndex = bufferIndex;
-                var baseIndex = bufferIndex * 16;
+                let baseIndex = bufferIndex * 16;
                 bufferIndex++;
 
                 vertices[baseIndex+0] = 0.0;
@@ -435,10 +436,10 @@ export default class Graphics
         if(!font.textures)
         {
             font.textures = new Array(font.bitmaps.length);
-            for(var i = 0; i < font.bitmaps.length; i++)
+            for(let i = 0; i < font.bitmaps.length; i++)
             {
-                var bitmap = font.bitmaps[i];
-                var texture = this._GL.createTexture();
+                let bitmap = font.bitmaps[i];
+                let texture = this._GL.createTexture();
 
                 this._GL.bindTexture(this._GL.TEXTURE_2D, texture);
 
@@ -611,7 +612,7 @@ export default class Graphics
         if(!this._Clips || this._Clips.length == 0)
         {
             //this._Clips.push({x:_ViewportX, y:_ViewportY, w:_ViewportWidth, h:_ViewportHeight})
-            this._Clips.push({x:0.0, y:0.0, w:this._Canvas.width, h:this._Canvas.height})
+            this._Clips.push({x:0.0, y:0.0, w:this._Canvas.width, h:this._Canvas.height});
         }
 
         var lastClip = this._Clips[this._Clips.length-1];
@@ -651,7 +652,7 @@ export default class Graphics
         {
             clip.h = (y+h)-y;
         }
-        this._Clips.push(clip)
+        this._Clips.push(clip);
         this._GL.enable(this._GL.SCISSOR_TEST);
         this._GL.scissor(clip.x, this._Canvas.height-clip.y-clip.h, clip.w < 0 ? 0 : clip.w, clip.h < 0 ? 0 : clip.h);
     }
@@ -672,7 +673,7 @@ export default class Graphics
 
         this._GL.enable(this._GL.SCISSOR_TEST);
         this._GL.scissor(clip.x, this._ViewportHeight-clip.y-clip.h, clip.w < 0 ? 0 : clip.w, clip.h < 0 ? 0 : clip.h);
-    };
+    }
 
     @bind
     clearClip()
@@ -685,4 +686,4 @@ export default class Graphics
     {
         this._TabSpaces = n;
     }
-};
+}

@@ -1,5 +1,5 @@
 import bind from "bind";
-// import Parser from "./Parser.js";
+import Parser from "./Parser.js";
 import Highlighter from "./Highlighter.js";
 
 export default class Document
@@ -8,13 +8,12 @@ export default class Document
     {
         this._Pane = pane;
         this._Hydrogen = hydrogen;
-        this._Acorn = window.acorn;
-        this._LineBreak = '\n';
-        this._Tab = '\t';
+        this._LineBreak = "\n";
+        this._Tab = "\t";
         this._Lines = [];
         this._MaxLineLength = 0;
         this._NumTabSpaces = 4;
-        // this._Parser = new Parser();
+        this._Parser = new Parser();
         this._Highlighter = new Highlighter();
 
         // A Set for more performant lookups
@@ -41,7 +40,7 @@ export default class Document
         let self = this;
         reader.onload = function(e) 
         {
-        	self.setContents(e.target.result);
+            self.setContents(e.target.result);
         };
 
         reader.readAsText(file);
@@ -86,20 +85,21 @@ export default class Document
 
 		let elapsed = end-start;
 		console.log("Document.parse took:", elapsed);
-		if(!silent && /*this.onContentsChange*/ this._Pane)
+		if(!silent && this._Pane /*this.onContentsChange*/)
 		{
 			// this.onContentsChange();
             this._Pane.onDocumentContentsChanged();
-		}
-        
-        this.repaintLines();    
+		} 
     }
 
-    repaintLines()
+    repaintLines(lineNo)
     {
         let start = Date.now();
-        // _Parser.process(_Lines);
-        this._Highlighter.Paint(this._Lines);
+        // this._Parser.process(this._Lines);
+        if(lineNo)
+            this._Highlighter.PaintLine(this._Lines, lineNo);
+        else
+            this._Highlighter.Paint(this._Lines);
         console.log("PAINTED IN:", Date.now() - start);
     }
 	
@@ -110,7 +110,7 @@ export default class Document
 
     get numTabSpaces()
     {
-    	return this._NumTabSpaces;
+        return this._NumTabSpaces;
     }
 
     get lineBreak()
@@ -159,7 +159,7 @@ export default class Document
     
     set text(t)
     {
-    	this.setContents(t);
+        this.setContents(t);
     }
 
     get maxLineDigits()

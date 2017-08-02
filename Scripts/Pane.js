@@ -92,7 +92,7 @@ export default class Pane
     openFile(file)
     {
 		this._Document = new Document(this, this._Hydrogen);
-	    /*this._Document.onContentsChange = function()
+		/*this._Document.onContentsChange = function()
 		{
 			// let start = Date.now();
 			// let lines = self._Document.lines;
@@ -614,9 +614,9 @@ export default class Pane
 				// find remaining line first non white space character
 				let firstNonWhiteIndex = -1;
 				let firstNonWhiteCode = -1;
-				for(let j = 0; j < remainingLine.length && firstNonWhiteIndex === -1; j++)
+				for(let j = 0; j < column && firstNonWhiteIndex === -1; j++)
 				{
-					let c = remainingLine[j];
+					let c = (remainingLine[j] << 11) >>> 11;
 					switch(c)
 					{
 						case 9: // Tab
@@ -633,8 +633,9 @@ export default class Pane
 				{
 					firstNonWhiteIndex = remainingLine.length;
 				}
-
+				
 				let prepend = new Uint32Array();
+				let extraSpace = 0;
 				if(firstNonWhiteIndex !== -1)
 				{
 					prepend = remainingLine.slice(0, firstNonWhiteIndex);
@@ -646,19 +647,38 @@ export default class Pane
 						// pr.set(_Document._TabCodePoint, prepend.length);
 						pr[prepend.length] = this._Document.tabCode;
 						prepend = pr;
+
+						// Check if it's followed by a matching '}'
+						for(let j = column, firstNonWhiteIndex = -1; firstNonWhiteIndex === -1 && j < line.length; j++)
+						{
+							let c = (line[j] << 11) >>> 11;
+							switch(c)
+							{
+								case 9: // Tab
+								case 32: // space
+									break;
+								case 125:
+									firstNonWhiteIndex = j;
+									extraSpace = 1;
+									lines.splice(lineFrom + 1, 0, prepend);
+									prepend = new Uint32Array(prepend.slice(0, prepend.length-1));
+									break;
+							}
+						}
 					}
 				}
 
+				// Leave everything before the cursor untouched
 				lines[lineFrom] = remainingLine;
-
+				
 				let append = line.slice(cursor.columnFrom);
 				let enterLine = new Uint32Array(prepend.length + append.length);
 				enterLine.set(prepend);
 				enterLine.set(append, prepend.length);
-				lines.splice(lineFrom+1, 0, enterLine);
+				lines.splice(lineFrom+1+extraSpace, 0, enterLine);
 
 				linesAdded++;
-				cursor.place(lineFrom+1, prepend.length);
+				cursor.place(lineFrom+1, prepend.length + extraSpace);
 			}
 		}
 
@@ -883,12 +903,27 @@ export default class Pane
 
 				if(insertLines.length === 1)
 				{
+					let openBracket = insertLines[0][0] === 123 && insertLines[0].length === 1;
+					let insertText;
+					if(openBracket)
+					{
+						insertText = new Uint32Array(2);
+						insertText.set([123,125]); // Open and closed brackets
+					}
+					else insertText = insertLines[0];
 
-					let insertText = insertLines[0];
+					let cbr = (line[cursor.columnFrom] << 11) >>> 11;
+					if(insertLines[0][0] === 125 && insertLines[0].length === 1 && cbr === 125)
+					{
+						cursor.place(lineFrom, cursor.columnFrom + 1);
+						// Upon closing bracket, skip insertion
+						break;
+					}	
 					// let insertText = new Uint32Array(text.length);
 					// for(let ti = 0; ti < text.length; ti++) insertText[ti] = text.codePointAt(ti);						
 
 					// Inserting text into the new line
+					/* 	
 					let adjChar = line[cursor.columnFrom-1];
 					let adjColorIdx = (adjChar) ? (adjChar >> 21) : 0;
 					adjColorIdx = adjColorIdx << 21;
@@ -902,18 +937,21 @@ export default class Pane
 					for(let tc = 0; tc < insertText.length; tc++)
 					{
 						insertText[tc] = insertText[tc] ^ adjColorIdx; // Add in the color 
-					}
+					} 
+					*/
 
 					let firstPart = line.slice(0, cursor.columnFrom + columnsAdded);
 					let secondPart = line.slice(cursor.columnTo + columnsAdded);
-					// let finalLine = firstPart + insertText + secondPart;
+					// finalLine = firstPart + insertText + secondPart;
 					let finalLine = new Uint32Array(firstPart.length + insertText.length + secondPart.length);
 					finalLine.set(firstPart);
 					finalLine.set(insertText, firstPart.length);
 					finalLine.set(secondPart, firstPart.length + insertText.length);
 					lines[lineFrom] = finalLine;
 
-					columnsAdded += insertText.length;
+					this._Document.repaintLines(lineFrom);
+
+					columnsAdded += openBracket ? 1 : insertText.length;
 					cursor.place(lineFrom, cursor.columnFrom + columnsAdded);	
 				}
 				else
@@ -922,6 +960,7 @@ export default class Pane
 					lines[lineFrom] = new Uint32Array(start.length + insertLines[0].length);
 					lines[lineFrom].set(start);
 					lines[lineFrom].set(insertLines[0], start.length);
+					this._Document.repaintLines(lineFrom);
 
 					// lines[lineFrom] = line.slice(0, cursor.columnFrom + columnsAdded) + insertLines[0];// + line.slice(cursor.columnTo + columnsAdded);
 					for(let j = 1; j < insertLines.length-1; j++)
@@ -929,6 +968,7 @@ export default class Pane
 						let typedArrayInsert = new Uint32Array(insertLines[j].length);
 						typedArrayInsert.set(insertLines[j]);
 						lines.splice(lineFrom+j, 0, typedArrayInsert);
+						this._Document.repaintLines(lineFrom+j);
 					}
 
 					let lastInsertLineStart = insertLines[insertLines.length-1];
@@ -938,6 +978,7 @@ export default class Pane
 					lastInsertLine.set(lastInsertLineEnd, lastInsertLineStart.length);
 
 					lines.splice(lineFrom+insertLines.length-1, 0, lastInsertLine);
+					this._Document.repaintLines(lineFrom+insertLines.length-1);
 					linesAdded += insertLines.length-1;
 					cursor.place(lineFrom+insertLines.length-1, lastInsertLineStart.length);
 				}
