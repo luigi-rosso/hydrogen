@@ -505,6 +505,7 @@ export default class Pane
 		this._DragCursor(rx, ry);
 	}
 
+	@bind
 	_ChangeComplete()
 	{
 		if(this._ChangeTimeout)
