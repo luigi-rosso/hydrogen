@@ -147,14 +147,34 @@ export default class Highlighter
 				pattern: /(?:\s|^)(\S+)(?=\s+?=\s+?function\()/g,
 				paint: function(match, lineNo)
 				{
-					let startCol = match.index + match[0].length - match[1].length;
-					let endCol = startCol + match[1].length;
-					let line = self._Lines[lineNo];
-
-					for(let i = startCol; i < endCol; i++)
+					if(match[1])
 					{
-						let c = line[i];
-						line[i] = self.colorChar(c, 5);
+						let startCol = match.index + match[0].length - match[1].length;
+						let endCol = startCol + match[1].length;
+						let line = self._Lines[lineNo];
+
+						for(let i = startCol; i < endCol; i++)
+						{
+							let c = line[i];
+							line[i] = self.colorChar(c, 5);
+						}
+					}
+				}
+			},
+			{
+				name: "functionObjectProperty",
+				pattern: /(\w+)(?=:\s{0,}function)/g,
+				paint: function(match, lineNo)
+				{
+					if(match[1])
+					{	
+						let line = self._Lines[lineNo];
+						let endCol = match.index + match[1].length;
+						for(let i = match.index; i < endCol; i++)
+						{
+							let c = line[i];
+							line[i] = self.colorChar(c, 3);
+						}
 					}
 				}
 			}
