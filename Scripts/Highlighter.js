@@ -141,6 +141,22 @@ export default class Highlighter
 						}
 					}
 				}
+			},
+			{
+				name: "functionVariable",
+				pattern: /(?:\s|^)(\S+)(?=\s+?=\s+?function\()/g,
+				paint: function(match, lineNo)
+				{
+					let startCol = match.index + match[0].length - match[1].length;
+					let endCol = startCol + match[1].length;
+					let line = self._Lines[lineNo];
+
+					for(let i = startCol; i < endCol; i++)
+					{
+						let c = line[i];
+						line[i] = self.colorChar(c, 5);
+					}
+				}
 			}
 		];
 	}
