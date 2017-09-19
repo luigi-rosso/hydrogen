@@ -35,7 +35,6 @@ export default class Document
     @bind
 	fromFile(file)
 	{
-		let filename = file.name.toLowerCase();
         let reader = new FileReader();
         let self = this;
         reader.onload = function(e) 

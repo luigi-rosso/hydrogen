@@ -160,6 +160,10 @@ export default class CachedFont
                 }
 
                 self._IsReady = true;
+                if(self.onReady)
+                {
+                    self.onReady();
+                }
             }
         };
         xhr.open("GET", filename, true);

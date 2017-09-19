@@ -470,6 +470,9 @@ export default class Graphics
         this._GL.uniform1f(shader.Uniforms.Opacity, opacity);  
         this._GL.uniform4fv(shader.Uniforms.Color, this._ColorBuffer);
 
+        // This allows any "non" colored characters to use the default color passed in by the color argument above.
+        this._LastColorIdx = 0;
+
         return true;
     }
 

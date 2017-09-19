@@ -5,11 +5,16 @@ import Pane from "./Pane.js";
 
 export default class Hydrogen
 {
-	constructor(canvas)
+	constructor(canvas, font)
 	{
 		this._Canvas = canvas;
 		this._Hydrogen = this;
-		this._Font = new CachedFont("Fonts/Terminus.ttf16.cache");
+		this._Font = new CachedFont(font || "Fonts/Terminus.ttf16.cache");
+		let self = this;
+		this._Font.onReady = function()
+		{
+			self.scheduleUpdate();
+		};
 
 		this._Graphics = new Graphics(this._Canvas);
 		this._UpdateTime = Date.now();
@@ -26,8 +31,9 @@ export default class Hydrogen
 		}
 
 		window.addEventListener("resize", this._OnResize, false);
-		document.body.addEventListener("dragover", this._OnDragOver, false);
-		document.body.addEventListener("drop", this._OnDragDrop, false);
+		document.body.addEventListener("dragover", this._OnDragOver);
+		document.body.addEventListener("dragleave", this._OnDragLeave);
+		document.body.addEventListener("drop", this._OnDragDrop);
 		document.body.addEventListener("paste", this._OnPaste, true);
 		document.body.addEventListener("copy", this._OnCopy, true);
 		document.body.addEventListener("cut", this._OnCut, true);
@@ -63,14 +69,37 @@ export default class Hydrogen
 	@bind
 	_OnDragOver(evt)
 	{
+		console.log("DRAG OVER");
 		evt.stopPropagation();
         evt.preventDefault();
         evt.dataTransfer.dropEffect = "copy";
+        return false;
+	}
+
+	@bind
+	_OnDragLeave(evt)
+	{
+		evt.stopPropagation();
+        evt.preventDefault();
+	}
+
+	openFile(file, pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return;
+			}
+			pane = this._Panes[0];
+		}
+		pane.openFile(file);
 	}
 
 	@bind
 	_OnDragDrop(evt)
 	{
+		console.log("DROP!");
 		evt.stopPropagation();
         evt.preventDefault();
 
@@ -94,12 +123,19 @@ export default class Hydrogen
 	@bind
 	_OnPaste(e)
 	{
-		this._FocusUI.onPaste(e.clipboardData);
+		if(this._FocusUI)
+		{
+			this._FocusUI.onPaste(e.clipboardData);
+		}
 	}
 
 	@bind
 	_OnCopy(e)
 	{
+		if(!this._FocusUI)
+		{
+			return;
+		}
 		let data = this._FocusUI.onCopy();
 		if(data)
 		{
@@ -112,6 +148,10 @@ export default class Hydrogen
 	@bind
 	_OnCut(e)
 	{
+		if(!this._FocusUI)
+		{
+			return;
+		}
 		let data = this._FocusUI.onCut();
 		if(data)
 		{
@@ -389,7 +429,7 @@ export default class Hydrogen
 		if(redraw)
 		{
 			this._WillAdvanceNextFrame = true;
-			window.requestAnimFrame(this._Update);
+			window.requestAnimationFrame(this._Update);
 		}
 		else
 		{
@@ -405,7 +445,7 @@ export default class Hydrogen
 		}
 		this._UpdateTime = Date.now();
 		this._WillAdvanceNextFrame = true;
-		window.requestAnimFrame(this._Update);
+		window.requestAnimationFrame(this._Update);
 	}
 
 	get font()
