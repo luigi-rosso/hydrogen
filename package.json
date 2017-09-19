@@ -2,6 +2,7 @@
   "name": "hydrogen",
   "version": "1.0.0",
   "description": "Lightweight code editor built entirely in JavaScript with WebGL rendering. Try it out at http://luigi-rosso.github.io/hydrogen/. Just drag and drop a text file in.",
+  "main": "Scripts/Hydrogen.js",
   "scripts": {
     "start": "./node_modules/.bin/webpack -d --watch"
   },
