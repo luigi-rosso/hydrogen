@@ -170,4 +170,33 @@ export default class Document
     {
         return this._MaxLineLength;
     }
+
+    find(term)
+    {
+        let results = [];
+        let text = this.text;
+        let regex = new RegExp(term, "g");
+        let match;
+        while((match = regex.exec(text)))
+        {
+            //console.log("Found", match[0], "at", match.index, regex.lastIndex, match);
+
+            // Count line breaks before each.
+            let index = -1;
+            let lastIndex = 0;
+            let line = -1;
+            do
+            {
+                lastIndex = index;
+                index = text.indexOf(this._LineBreak, index+1);
+                //console.log("IDX", index, match.index);
+                line++;
+            }while(index < match.index && index !== -1);
+            // 15 91
+            //console.log(line, lastIndex, " ", match.index-lastIndex);
+            results.push({start:{line:line, column:match.index-lastIndex-1}});
+        }
+
+        return results;
+    }
 }

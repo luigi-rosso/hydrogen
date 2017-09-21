@@ -1777,6 +1777,27 @@ export default class Pane
 		graphics.popClip();	
 	}
 
+	find(searchTerm)
+	{
+		let results = this._Document.find(searchTerm);
+
+		this._Cursors.length = 0;
+		
+		for(let result of results)
+		{
+			let cursor = new Cursor();
+			cursor.place(result.start.line, result.start.column);
+			this._Cursors.push(cursor);
+		}
+  
+		this._Hydrogen.scheduleUpdate();
+// → Found 3 at 14
+//   Found 42 at 33
+//   Found 88 at 40
+		//let results = text.match(searchTerm);
+		//console.log(results);
+	}
+
 	get x()
     {
         return this._X;
@@ -1806,5 +1827,4 @@ export default class Pane
     {
         return this._Height;
     }
-
 }
