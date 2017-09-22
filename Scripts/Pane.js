@@ -239,7 +239,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = startX + Math.floor(((x-startX) / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = startX + Math.round(((x-startX) / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					break;
 				default:
 					x += columnWidth;
@@ -532,6 +532,10 @@ export default class Pane
 		if(!this._ChangeTimeout)
 		{
 			this._ChangeTimeout = setTimeout(this._ChangeComplete, this._HistoryCaptureDelay);
+		}
+		if(this._Document)
+		{
+			this._Document.scheduleUpdateContentSize();
 		}
 		
 		this._TriggeredScrollX = this._ScrollX;
@@ -1270,8 +1274,8 @@ export default class Pane
 	@bind
 	onMouseWheel(evt)
 	{
-		this._ScrollY -= evt.deltaY / 2.0;
-		this._ScrollX -= evt.deltaX / 2.0;
+		this._ScrollY -= evt.deltaY;// / 2.0;
+		this._ScrollX -= evt.deltaX;// / 2.0;
 
 		this._ClampScroll();
 		this._ScrollYVelocity = 0;
@@ -1423,7 +1427,7 @@ export default class Pane
 
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 		let contentHeight = this._Document.lines.length * lineHeight;
-		let contentWidth = this._Document.maxLineLength * this._Font.horizontalAdvance;
+		let contentWidth = this._Document.maxLineDisplayLength * this._Font.horizontalAdvance + 100;
 
 		let minScrollY = Math.min(0, paneHeight - contentHeight - 100);
 		let minScrollX = Math.min(0, paneWidth - contentWidth);
@@ -1445,7 +1449,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 //					x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1476,7 +1480,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					//x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1502,7 +1506,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					//x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1746,9 +1750,8 @@ export default class Pane
 
 				let visRange = this._VisibleColumns(line, -renderScrollX, this._Width - renderScrollX);
 
-				let x = visRange.firstX;//this._X+gutter+firstColumnOrigin;
-
-				graphics.drawText(renderScrollX+gutter+x, y+baseLine, line, visRange.first, visRange.last);
+				let startX = renderScrollX+gutter;
+				graphics.drawText(startX, startX+visRange.firstX, y+baseLine, line, visRange.first, visRange.last);
 				y += lineHeight;
 			}
 			graphics.popClip();
@@ -1767,7 +1770,7 @@ export default class Pane
 						label[ln] = lineNumberLabel.codePointAt(ln);
 					}
 
-					graphics.drawText(x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
+					graphics.drawText(0, x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
 
 					y += lineHeight;
 				}
