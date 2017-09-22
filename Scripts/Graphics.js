@@ -555,7 +555,7 @@ export default class Graphics
             }
             if(isTab)
             {
-                x = startX + Math.floor(((x-startX) / (this._TabSpaces*g.ha))+1)*(this._TabSpaces*g.ha);
+                x = startX + Math.round(((x-startX) / (this._TabSpaces*g.ha))+1)*(this._TabSpaces*g.ha);
             }
             else
             {
