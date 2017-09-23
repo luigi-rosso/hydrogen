@@ -303,9 +303,9 @@ export default class Pane
 			for(let i = 0; i < this._Cursors.length; i++)
 			{
 				let cur = this._Cursors[i];
-				if(cursor.lineFrom > cursorLine)
+				if(cur.lineFrom > cursorLine)
 				{
-					cursorLine = cursor.lineFrom;
+					cursorLine = cur.lineFrom;
 					cursor = cur;
 				}
 			}
@@ -368,6 +368,8 @@ export default class Pane
 
 		let lines = this._Document.lines;
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
 
 		let renderScrollY = Math.round(this._ScrollY);
 		let renderScrollX = Math.round(this._ScrollX);
@@ -377,19 +379,12 @@ export default class Pane
 		let firstLine = Math.ceil(-renderScrollY / lineHeight);
 		let lastLine = Math.min(firstLine + visibleLines-1, lines.length-1); // visible lines - 1 as it's the last index
 
-		let isCursorVisible = false;
-		for(let i = 0; i < this._Cursors.length; i++)
+
+		// Changing this logic to only track the first cursor's visibility.
+		let cursor = this._Cursors[0];
+		let moved = false;
+		if(cursor.lineAt < firstLine || cursor.lineAt > lastLine)
 		{
-			let cursor = this._Cursors[i];
-			if(cursor.lineAt >= firstLine && cursor.lineAt <= lastLine)
-			{
-				isCursorVisible = true;
-				break;
-			}
-		}
-		if(!isCursorVisible)
-		{
-			let cursor = this._Cursors[0];
 			if(!closest)
 			{
 				this._ScrollY = -cursor.lineAt * lineHeight + this._Height/2;
@@ -412,6 +407,28 @@ export default class Pane
 					this._ScrollY = cursorBottom;
 				}
 			}
+			moved = true;
+		}
+		// Left side is less than gutter?
+		let x = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.lineAt], 0, cursor.columnFrom);
+		if(x < this._X + gutter)
+		{
+			this._ScrollX += (this._X + gutter)-x;
+			moved = true;
+		}
+		else
+		{
+			// Right side is in screen?
+			let edgePad = 20;
+			x = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.lineTo], 0, cursor.columnTo);
+			if(x + edgePad > this._X + this._Width)
+			{
+				this._ScrollX += (this._X + this._Width) - x - edgePad;
+				moved = true;
+			}
+		}
+		if(moved)
+		{
 			this._ClampScroll();
 			this._Hydrogen.scheduleUpdate();
 		}
@@ -1789,10 +1806,12 @@ export default class Pane
 		for(let result of results)
 		{
 			let cursor = new Cursor();
-			cursor.place(result.start.line, result.start.column);
+			//cursor.place(result.start.line, result.start.column);
+			cursor.span(result.start.line, result.start.column, result.end.line, result.end.column);
 			this._Cursors.push(cursor);
 		}
   
+  		this._EnsureCursorVisible();
 		this._Hydrogen.scheduleUpdate();
 // → Found 3 at 14
 //   Found 42 at 33
