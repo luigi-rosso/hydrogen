@@ -1,6 +1,7 @@
 import bind from "bind";
 import Cursor from "./Cursor.js";
 import Document from "./Document.js";
+import _ from "lodash/core";
 
 export default class Pane
 {
@@ -89,8 +90,8 @@ export default class Pane
 	}
 
 	@bind
-    openFile(file)
-    {
+	openFile(file)
+	{
 		this._Document = new Document(this, this._Hydrogen);
 		/*this._Document.onContentsChange = function()
 		{
@@ -104,10 +105,10 @@ export default class Pane
 		this._Cursors = [];
 		this._ClampScroll();
 		this._Hydrogen.scheduleUpdate();
-    }
+	}
 
-    _CaptureJournalEntry()
-    {
+	_CaptureJournalEntry()
+	{
 		let txt = this._Document.text;
 
 		let entry = {
@@ -128,7 +129,39 @@ export default class Pane
 		}
 		this._Journal.push(entry);
 		this._JournalIndex = this._Journal.length-1;
-    }
+	}
+
+	clearCursors()
+	{
+		this._Cursors.length = 0;
+		this._Hydrogen.scheduleUpdate();
+	}
+
+	get numCursors()
+	{
+		return this._Cursors.length;
+	}
+
+	serializeCursors()
+	{
+		let cursors = [];
+		for(let cursor of this._Cursors)
+		{
+			cursors.push(cursor.serialize());
+		}
+		return cursors;
+	}
+
+	deserializeCursors(cursors)
+	{
+		this._Cursors.length = 0;
+		for(let i = 0; i < cursors.length; i++)
+		{
+			let cursorData = cursors[i];
+			this._Cursors.push(new Cursor(cursorData));
+		}
+		this._Hydrogen.scheduleUpdate();
+	}
 
 	onPaste(data)
 	{
@@ -145,7 +178,7 @@ export default class Pane
 		for(let ti = 0; ti < intArray.length; ti++)
 		{
 			let codePoint = (intArray[ti] << 11) >>> 11;
-            let char = String.fromCodePoint(codePoint);
+			let char = String.fromCodePoint(codePoint);
 			result += char;
 		}
 
@@ -419,22 +452,17 @@ export default class Pane
 
 	_ValidateCursors()
 	{
-		this._Cursors.sort(function(a, b)
-		{
-			return a.columnFrom - b.columnFrom;
-		});
-
-		this._Cursors.sort(function(a, b)
-		{
-			return a.lineFrom - b.lineFrom;
-		});
+		// Don't use .sort to do multi key sorting as it's not stable (elements with the same value may get swapped).
+		// Use lodash to stable sort the cursors.
+		this._Cursors = _.sortBy(this._Cursors, function(o) { return o.columnFrom; });
+		this._Cursors = _.sortBy(this._Cursors, function(o) { return o.lineFrom; });
 
 		// Merge overlaps.
 		for(let i = 0; i < this._Cursors.length-1; i++)
 		{
 			let cursorA = this._Cursors[i];
 			let cursorB = this._Cursors[i+1];
-			console.log("HERE", cursorA.serialize(), cursorB.serialize());
+			//console.log("HERE", cursorA.serialize(), cursorB.serialize());
 
 			if(cursorB.lineFrom < cursorA.lineTo || (cursorB.lineFrom == cursorA.lineTo && cursorB.columnFrom <= cursorA.columnTo))
 			{
@@ -1777,34 +1805,58 @@ export default class Pane
 		graphics.popClip();	
 	}
 
+	find(searchTerm)
+	{
+		let results = this._Document.find(searchTerm);
+
+		this._Cursors.length = 0;
+		//if(results.length > 3) results.length = 3;
+		for(let result of results)
+		{
+			let cursor = new Cursor();
+			//cursor.place(result.start.line, result.start.column);
+			cursor.span(result.start.line, result.start.column, result.end.line, result.end.column);
+			this._Cursors.push(cursor);
+		}
+  
+	console.log("RESULTS", results);
+		//this._ValidateCursors();
+		this._EnsureCursorVisible();
+		this._Hydrogen.scheduleUpdate();
+// → Found 3 at 14
+//   Found 42 at 33
+//   Found 88 at 40
+		//let results = text.match(searchTerm);
+		//console.log(results);
+	}
+
 	get x()
-    {
-        return this._X;
-    }
+	{
+		return this._X;
+	}
 
-    get y()
-    {
-        return this._Y;
-    }
+	get y()
+	{
+		return this._Y;
+	}
 
-    get x2()
-    {
-        return this._X2;
-    }
+	get x2()
+	{
+		return this._X2;
+	}
 
-    get y2()
-    {
-        return this._Y2;
-    }
+	get y2()
+	{
+		return this._Y2;
+	}
 
-    get width()
-    {
-        return this._Width;
-    }
+	get width()
+	{
+		return this._Width;
+	}
 
-    get height()
-    {
-        return this._Height;
-    }
-
+	get height()
+	{
+		return this._Height;
+	}
 }

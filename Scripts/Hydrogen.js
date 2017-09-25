@@ -9,6 +9,7 @@ export default class Hydrogen
 	{
 		this._Canvas = canvas;
 		this._Hydrogen = this;
+		this._FocusElement = document.body;
 		this._Font = new CachedFont(font || "Fonts/Terminus.ttf16.cache");
 		let self = this;
 		this._Font.onReady = function()
@@ -21,6 +22,7 @@ export default class Hydrogen
 		this._Panes = [];
 		this._MouseCaptureUI;
 		this._FocusUI;
+		this._Focused = true;
 		this._IsOSX = navigator.userAgent.indexOf("Mac OS X") != -1;
 		this._WillAdvanceNextFrame = true;
 
@@ -37,18 +39,78 @@ export default class Hydrogen
 		document.body.addEventListener("paste", this._OnPaste, true);
 		document.body.addEventListener("copy", this._OnCopy, true);
 		document.body.addEventListener("cut", this._OnCut, true);
-		document.body.addEventListener("mousewheel", this._OnMouseWheel, false);
-		document.body.addEventListener("mousedown", this._OnMouseDown, false);
+		canvas.addEventListener("mousewheel", this._OnMouseWheel, false);
+		canvas.addEventListener("mousedown", this._OnMouseDown, false);
 		window.addEventListener("mousemove", this._OnMouseMove, true);
 		window.addEventListener("mouseup", this._OnMouseUp, true);
 		document.body.addEventListener("keypress", this._OnKeyPress, false);
 		document.body.addEventListener("keydown", this._OnKeyDown, false);
+
+		// Detect general focus changes.
+		document.addEventListener("focusin", this.onFocusIn);
+		document.addEventListener("focusout", this.onFocusOut);
 
 		this._OnResize();
 		this._Update();
 		this._AddPane(1.0, 1.0);
 	}
 	
+	onFocused()
+	{
+		if(this._Focused)
+		{
+			return;
+		}
+		this._Focused = true;
+
+		if(this._FocusUI && this._RefocusCursors && this._FocusUI.numCursors === 0)
+		{
+			this._FocusUI.deserializeCursors(this._RefocusCursors);
+		}
+		this._RefocusCursors = null;
+	}
+
+	onBlurred()
+	{
+		if(!this._Focused)
+		{
+			return;
+		}
+		this._Focused = false;
+		if(this._FocusUI)
+		{
+			console.log("REMOVING THEM");
+			this._RefocusCursors = this._FocusUI.serializeCursors();
+			this._FocusUI.clearCursors();
+		}
+	}
+
+	@bind
+	onFocusIn(ev)
+	{
+		if(document.activeElement === this._FocusElement)
+		{
+			this.onFocused();
+		}
+		else
+		{
+			this.onBlurred();
+		}	
+	}
+
+	@bind
+	onFocusOut(ev)
+	{
+		if(document.activeElement === this._FocusElement)
+		{
+			this.onFocused();
+		}
+		else
+		{
+			this.onBlurred();
+		}	
+	}
+
 	_AddPane(xf, yf)
 	{
 		let pane = new Pane(this);
@@ -71,16 +133,16 @@ export default class Hydrogen
 	{
 		console.log("DRAG OVER");
 		evt.stopPropagation();
-        evt.preventDefault();
-        evt.dataTransfer.dropEffect = "copy";
-        return false;
+		evt.preventDefault();
+		evt.dataTransfer.dropEffect = "copy";
+		return false;
 	}
 
 	@bind
 	_OnDragLeave(evt)
 	{
 		evt.stopPropagation();
-        evt.preventDefault();
+		evt.preventDefault();
 	}
 
 	openFile(file, pane)
@@ -101,10 +163,10 @@ export default class Hydrogen
 	{
 		console.log("DROP!");
 		evt.stopPropagation();
-        evt.preventDefault();
+		evt.preventDefault();
 
-        for(let i = 0; i < this._Panes.length; i++)
-        {
+		for(let i = 0; i < this._Panes.length; i++)
+		{
 			let pane = this._Panes[i];
 			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
 			{
@@ -117,7 +179,7 @@ export default class Hydrogen
 				}
 				break;
 			}
-        }
+		}
 	}
 
 	@bind
@@ -163,21 +225,25 @@ export default class Hydrogen
 	_OnMouseWheel(evt)
 	{
 		evt.stopPropagation();
-        evt.preventDefault();
+		evt.preventDefault();
 
-        for(let i = 0; i < this._Panes.length; i++)
-        {
+		for(let i = 0; i < this._Panes.length; i++)
+		{
 			let pane = this._Panes[i];
 			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
 			{
 				pane.onMouseWheel(evt);
 				break;
 			}
-        }
+		}
 	}
 
 	focus(ui)
 	{
+		if(this._FocusUI !== ui)
+		{
+			this._RefocusCursors = null;
+		}
 		this._FocusUI = ui;
 	}
 
@@ -190,69 +256,104 @@ export default class Hydrogen
 	_OnMouseDown(evt)
 	{
 		evt.stopPropagation();
-        evt.preventDefault();
+		evt.preventDefault();
 
-        for(let i = 0; i < this._Panes.length; i++)
-        {
+		// Clear focus from any other items that may be in the DOM (usually this resets the document.activeElement to the body).
+		if(document.activeElement !== this._FocusElement)
+		{
+			document.activeElement.blur();
+		}
+		for(let i = 0; i < this._Panes.length; i++)
+		{
 			let pane = this._Panes[i];
 			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
 			{
 				pane.onMouseDown(evt, evt.x-pane.x, evt.y-pane.y);
 				break;
 			}
-        }
+		}
 	}
 
 	@bind
 	_OnMouseMove(evt)
 	{
 		evt.stopPropagation();
-        evt.preventDefault();
+		evt.preventDefault();
 
-        if(this._MouseCaptureUI)
-        {
+		if(this._MouseCaptureUI)
+		{
 			this._MouseCaptureUI.onMouseMove(evt, evt.x-this._MouseCaptureUI.x, evt.y-this._MouseCaptureUI.y);
 			return;
-        }
+		}
 
-        for(let i = 0; i < this._Panes.length; i++)
-        {
+		for(let i = 0; i < this._Panes.length; i++)
+		{
 			let pane = this._Panes[i];
 			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
 			{
 				pane.onMouseMove(evt, evt.x-pane.x, evt.y-pane.y);
 				break;
 			}
-        }
+		}
 	}
 
 	@bind
 	_OnMouseUp(evt)
 	{
 		evt.stopPropagation();
-        evt.preventDefault();
+		evt.preventDefault();
 
-        if(this._MouseCaptureUI)
-        {
+		if(this._MouseCaptureUI)
+		{
 			this._MouseCaptureUI.onMouseUp(evt, evt.x-this._MouseCaptureUI.x, evt.y-this._MouseCaptureUI.y);
 			this._MouseCaptureUI = null;
 			return;
-        }
+		}
 
-        for(let i = 0; i < this._Panes.length; i++)
-        {
+		for(let i = 0; i < this._Panes.length; i++)
+		{
 			let pane = this._Panes[i];
 			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
 			{
 				pane.onMouseUp(evt, evt.x-pane.x, evt.y-pane.y);
 				break;
 			}
-        }
+		}
 	}
 
 	@bind
 	_OnKeyDown(evt)
 	{
+		// Do pre-focus specific events first.
+		switch(evt.keyCode)
+		{
+				// F for find
+			case 70:
+				if((this._IsOSX && evt.metaKey) || evt.ctrlKey)
+				{
+					if(this.onShowSearch)
+					{
+						this.onShowSearch(evt);
+					}
+				}
+
+				// esc
+				break;
+
+			case 27:
+				if(this.onEscape)
+				{
+					this.onEscape(evt);
+				}
+				break;
+		}
+
+		// Check a pane is in focus (not a search input or something else we may add in the DOM later).
+		if(document.activeElement !== this._FocusElement)
+		{
+			return;
+		}
+
 		if(evt.keyCode == 8) // Prevent backspace navigation.
 		{
 			evt.preventDefault();
@@ -351,14 +452,19 @@ export default class Hydrogen
 					}
 				}
 				break;
+
 		}
 
-        
+		
 	}
 
 	@bind
 	_OnKeyPress(evt)
 	{
+		if(document.activeElement !== this._FocusElement)
+		{
+			return;
+		}
 		if(this._FocusUI)
 		{
 			if(this._IsOSX && evt.metaKey)
@@ -404,7 +510,7 @@ export default class Hydrogen
 	_Update()
 	{
 		let now = Date.now();
-        let elapsed = now - this._UpdateTime;
+		let elapsed = now - this._UpdateTime;
 		let elapsedS = elapsed/1000.0;
 		this._UpdateTime = now;
 
