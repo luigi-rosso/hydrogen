@@ -158,6 +158,19 @@ export default class Hydrogen
 		pane.openFile(file);
 	}
 
+	find(searchTerm, pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return;
+			}
+			pane = this._Panes[0];
+		}
+		pane.find(searchTerm);
+	}
+
 	@bind
 	_OnDragDrop(evt)
 	{

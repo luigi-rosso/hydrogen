@@ -272,7 +272,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = startX + Math.floor(((x-startX) / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = startX + Math.round(((x-startX) / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					break;
 				default:
 					x += columnWidth;
@@ -336,9 +336,9 @@ export default class Pane
 			for(let i = 0; i < this._Cursors.length; i++)
 			{
 				let cur = this._Cursors[i];
-				if(cursor.lineFrom > cursorLine)
+				if(cur.lineFrom > cursorLine)
 				{
-					cursorLine = cursor.lineFrom;
+					cursorLine = cur.lineFrom;
 					cursor = cur;
 				}
 			}
@@ -401,6 +401,8 @@ export default class Pane
 
 		let lines = this._Document.lines;
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
 
 		let renderScrollY = Math.round(this._ScrollY);
 		let renderScrollX = Math.round(this._ScrollX);
@@ -410,19 +412,12 @@ export default class Pane
 		let firstLine = Math.ceil(-renderScrollY / lineHeight);
 		let lastLine = Math.min(firstLine + visibleLines-1, lines.length-1); // visible lines - 1 as it's the last index
 
-		let isCursorVisible = false;
-		for(let i = 0; i < this._Cursors.length; i++)
+
+		// Changing this logic to only track the first cursor's visibility.
+		let cursor = this._Cursors[0];
+		let moved = false;
+		if(cursor.lineAt < firstLine || cursor.lineAt > lastLine)
 		{
-			let cursor = this._Cursors[i];
-			if(cursor.lineAt >= firstLine && cursor.lineAt <= lastLine)
-			{
-				isCursorVisible = true;
-				break;
-			}
-		}
-		if(!isCursorVisible)
-		{
-			let cursor = this._Cursors[0];
 			if(!closest)
 			{
 				this._ScrollY = -cursor.lineAt * lineHeight + this._Height/2;
@@ -445,6 +440,28 @@ export default class Pane
 					this._ScrollY = cursorBottom;
 				}
 			}
+			moved = true;
+		}
+		// Left side is less than gutter?
+		let x = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.lineAt], 0, cursor.columnFrom);
+		if(x < this._X + gutter)
+		{
+			this._ScrollX += (this._X + gutter)-x;
+			moved = true;
+		}
+		else
+		{
+			// Right side is in screen?
+			let edgePad = 20;
+			x = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.lineTo], 0, cursor.columnTo);
+			if(x + edgePad > this._X + this._Width)
+			{
+				this._ScrollX += (this._X + this._Width) - x - edgePad;
+				moved = true;
+			}
+		}
+		if(moved)
+		{
 			this._ClampScroll();
 			this._Hydrogen.scheduleUpdate();
 		}
@@ -560,6 +577,10 @@ export default class Pane
 		if(!this._ChangeTimeout)
 		{
 			this._ChangeTimeout = setTimeout(this._ChangeComplete, this._HistoryCaptureDelay);
+		}
+		if(this._Document)
+		{
+			this._Document.scheduleUpdateContentSize();
 		}
 		
 		this._TriggeredScrollX = this._ScrollX;
@@ -1298,8 +1319,8 @@ export default class Pane
 	@bind
 	onMouseWheel(evt)
 	{
-		this._ScrollY -= evt.deltaY / 2.0;
-		this._ScrollX -= evt.deltaX / 2.0;
+		this._ScrollY -= evt.deltaY;// / 2.0;
+		this._ScrollX -= evt.deltaX;// / 2.0;
 
 		this._ClampScroll();
 		this._ScrollYVelocity = 0;
@@ -1451,7 +1472,7 @@ export default class Pane
 
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 		let contentHeight = this._Document.lines.length * lineHeight;
-		let contentWidth = this._Document.maxLineLength * this._Font.horizontalAdvance;
+		let contentWidth = this._Document.maxLineDisplayLength * this._Font.horizontalAdvance + 100;
 
 		let minScrollY = Math.min(0, paneHeight - contentHeight - 100);
 		let minScrollX = Math.min(0, paneWidth - contentWidth);
@@ -1473,7 +1494,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 //					x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1504,7 +1525,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					//x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1530,7 +1551,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					//x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1774,9 +1795,8 @@ export default class Pane
 
 				let visRange = this._VisibleColumns(line, -renderScrollX, this._Width - renderScrollX);
 
-				let x = visRange.firstX;//this._X+gutter+firstColumnOrigin;
-
-				graphics.drawText(renderScrollX+gutter+x, y+baseLine, line, visRange.first, visRange.last);
+				let startX = renderScrollX+gutter;
+				graphics.drawText(startX, startX+visRange.firstX, y+baseLine, line, visRange.first, visRange.last);
 				y += lineHeight;
 			}
 			graphics.popClip();
@@ -1795,7 +1815,7 @@ export default class Pane
 						label[ln] = lineNumberLabel.codePointAt(ln);
 					}
 
-					graphics.drawText(x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
+					graphics.drawText(0, x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
 
 					y += lineHeight;
 				}
@@ -1810,7 +1830,7 @@ export default class Pane
 		let results = this._Document.find(searchTerm);
 
 		this._Cursors.length = 0;
-		//if(results.length > 3) results.length = 3;
+
 		for(let result of results)
 		{
 			let cursor = new Cursor();
@@ -1819,15 +1839,9 @@ export default class Pane
 			this._Cursors.push(cursor);
 		}
   
-	console.log("RESULTS", results);
 		//this._ValidateCursors();
 		this._EnsureCursorVisible();
 		this._Hydrogen.scheduleUpdate();
-// → Found 3 at 14
-//   Found 42 at 33
-//   Found 88 at 40
-		//let results = text.match(searchTerm);
-		//console.log(results);
 	}
 
 	get x()
