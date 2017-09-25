@@ -33,7 +33,8 @@ export default class Pane
 		this._CursorColor = [1.0, 0.7, 0.0, 1.0];
 		this._LineLabelColor = [0.3, 0.3, 0.3, 1.0];
 		this._SelectionColor = [0.2, 0.2, 0.2, 1.0];
-		this._HighlightColor = [0.07, 0.07, 0.07, 1.0];
+		this._HighlightColor = [1.0*0.75, 0.7*0.75, 0.0*0.75, 1.0];
+		this._LineFocusColor = [0.07, 0.07, 0.07, 1.0];
 
 		this._ScrollX = 0.0;
 		this._ScrollY = 0.0;
@@ -47,6 +48,7 @@ export default class Pane
 		this._Document;
 
 		this._Cursors = [];
+		this._Highlights = [];
 		this._IsDragging = false;
 		this._ChangeTimeout = null;
 
@@ -103,6 +105,7 @@ export default class Pane
 		};*/
 		this._Document.fromFile(file);
 		this._Cursors = [];
+		this._Highlights = [];
 		this._ClampScroll();
 		this._Hydrogen.scheduleUpdate();
 	}
@@ -134,6 +137,7 @@ export default class Pane
 	clearCursors()
 	{
 		this._Cursors.length = 0;
+		this.updateHighlights();
 		this._Hydrogen.scheduleUpdate();
 	}
 
@@ -155,11 +159,13 @@ export default class Pane
 	deserializeCursors(cursors)
 	{
 		this._Cursors.length = 0;
+		this.updateHighlights();
 		for(let i = 0; i < cursors.length; i++)
 		{
 			let cursorData = cursors[i];
 			this._Cursors.push(new Cursor(cursorData));
 		}
+
 		this._Hydrogen.scheduleUpdate();
 	}
 
@@ -185,6 +191,46 @@ export default class Pane
 		return result;
 	}
 
+	getCursorText(cursor, data)
+	{
+		let lines = this._Document.lines;
+		if(cursor.hasRange)
+		{
+			if(cursor.lineFrom === cursor.lineTo)
+			{
+				let line = lines[cursor.lineFrom];
+				let sel = this._ConvertToText(line.slice(cursor.columnFrom, cursor.columnTo));
+				if(data)
+				{
+					data.push(sel);
+				}
+				else
+				{
+					return sel;
+				}
+			}
+			else
+			{
+				let append = data || [];
+				let sel = this._ConvertToText(lines[cursor.lineFrom].slice(cursor.columnFrom));
+				append.push(sel);
+				for(let j = cursor.lineFrom+1; j < cursor.lineTo; j++)
+				{
+					sel = this._ConvertToText(lines[j]);
+					append.push(sel);
+				}
+
+				sel = this._ConvertToText(lines[cursor.lineTo].slice(0, cursor.columnTo));
+				append.push(sel);
+				if(!data)
+				{
+					return append.join(this._Document.lineBreak);
+				}
+			}
+		}
+		return null;
+	}
+
 	onCopy()
 	{
 		let data = [];
@@ -192,28 +238,8 @@ export default class Pane
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
 			let cursor = this._Cursors[i];
-			if(cursor.hasRange)
-			{
-				if(cursor.lineFrom === cursor.lineTo)
-				{
-					let line = lines[cursor.lineFrom];
-					let sel = this._ConvertToText(line.slice(cursor.columnFrom, cursor.columnTo));
-					data.push(sel);
-				}
-				else
-				{
-					let sel = this._ConvertToText(lines[cursor.lineFrom].slice(cursor.columnFrom));
-					data.push(sel);
-					for(let j = cursor.lineFrom+1; j < cursor.lineTo; j++)
-					{
-						sel = this._ConvertToText(lines[j]);
-						data.push(sel);
-					}
 
-					sel = this._ConvertToText(lines[cursor.lineTo].slice(0, cursor.columnTo));
-					data.push(sel);
-				}
-			}
+			this.getCursorText(cursor, data);
 		}
 
 		let finalData = data.length ? data.join(this._Document.lineBreak) : null;
@@ -366,7 +392,6 @@ export default class Pane
 			else 
 			{
 				cursor.span(cursor.lineFrom, cursor.columnFrom, hit.line, hit.column, true);
-
 			}
 		}
 		else
@@ -390,9 +415,49 @@ export default class Pane
 		cursor.setPlacedColumn(this._Document);
 		this._EnsureCursorVisible(true);
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
-	_EnsureCursorVisible(closest)
+	@bind
+	highlight()
+	{
+		let cursor = this._Cursors.length ? this._Cursors[this._Cursors.length-1] : null;
+		if(!cursor)
+		{
+			return;
+		}
+		
+		let searchTerm = this.getCursorText(cursor);
+		if(!searchTerm)
+		{
+			return;
+		}
+		
+		this._Highlights.length = 0;
+		this._Hydrogen.scheduleUpdate();
+
+		searchTerm = searchTerm.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+		let results = this._Document.find(searchTerm);
+
+		for(let result of results)
+		{
+			let cursor = new Cursor();
+			cursor.span(result.start.line, result.start.column, result.end.line, result.end.column);
+			this._Highlights.push(cursor);
+		}
+	}
+
+	updateHighlights()
+	{
+		if(this._Highlights.length !== 0)
+		{
+			this._Highlights.length = 0;
+		}
+		clearTimeout(this._HighlightsTimeout);
+		this._HighlightsTimeout = setTimeout(this.highlight, 1);
+	}
+
+	_EnsureCursorVisible(closest, specificCursor)
 	{
 		if(this._Cursors.length === 0)
 		{
@@ -414,7 +479,7 @@ export default class Pane
 
 
 		// Changing this logic to only track the first cursor's visibility.
-		let cursor = this._Cursors[0];
+		let cursor = specificCursor || this._Cursors[0];
 		let moved = false;
 		if(cursor.lineAt < firstLine || cursor.lineAt > lastLine)
 		{
@@ -564,6 +629,7 @@ export default class Pane
 
 	_TriggerChange()
 	{
+		this.updateHighlights();
 		if(!this._ChangeTimeout)
 		{
 			let lastEntry = this._Journal[this._JournalIndex];
@@ -580,7 +646,7 @@ export default class Pane
 		}
 		if(this._Document)
 		{
-			this._Document.scheduleUpdateContentSize();
+			this._Document.markDirty();
 		}
 		
 		this._TriggeredScrollX = this._ScrollX;
@@ -1309,6 +1375,10 @@ export default class Pane
 	@bind
 	onMouseUp(evt, rx, ry)
 	{
+		if(this._IsDragging)
+		{
+			this.updateHighlights();
+		}
 		this._IsDragging = false;
 		this._ScrollYVelocity = 0;
 		this._ValidateCursors();
@@ -1343,6 +1413,7 @@ export default class Pane
 		this._EnsureCursorVisible(true);
 		this._MarkJustInput();
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
 	cursorUp(span)
@@ -1375,6 +1446,7 @@ export default class Pane
 		this._ValidateCursors();
 		this._EnsureCursorVisible(true);
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
 	cursorWordRight(span)
@@ -1388,6 +1460,7 @@ export default class Pane
 		this._EnsureCursorVisible(true);
 		this._MarkJustInput();
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
 	cursorHome(span)
@@ -1605,8 +1678,9 @@ export default class Pane
 				cursor = this._Cursors[i];
 				
 				domCursor = this._GetDomCursor(i);
+				domCursor.style.animation = shouldDisable ? "none" : null;
 			}
-			domCursor.style.animation = shouldDisable ? "none" : null;
+			
 			this._IsBlinkingDisabled = shouldDisable;
 		}
 	}
@@ -1693,11 +1767,11 @@ export default class Pane
 
 		graphics.pushClip(this._X, this._Y, this._Width, this._Height);
 
+
 		// Draw focused line backgrounds.
 		let lastCursorLine = -1;
-		for(let i = 0; i < this._Cursors.length; i++)
+		for(let cursor of this._Cursors)
 		{
-			let cursor = this._Cursors[i];
 			if(cursor.hasRange)
 			{
 				continue;
@@ -1708,12 +1782,66 @@ export default class Pane
 			}
 			lastCursorLine = cursor.lineFrom;
 			let startY = Math.round(this._Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
-			graphics.drawRect(0, startY, this._Width, lineHeight, 1.0, this._HighlightColor);
+			graphics.drawRect(0, startY, this._Width, lineHeight, 1.0, this._LineFocusColor);
+		}
 
+		// Draw highlights.
+		let highlightForegrounds = [];
+		for(let i = 0; i < this._Highlights.length; i++)
+		{
+			let cursor = this._Highlights[i];
+			if(cursor.hasRange)
+			{
+				let currentLine = cursor.lineFrom;
+				let endLine = cursor.lineTo;
+				let columnStart = cursor.columnFrom;
 
+				while(true)
+				{
+					let line = lines[currentLine];
+
+					let startY = Math.round(this._Y + renderScrollY + currentLine * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
+					let startX = Math.max(gutter, this._X + gutter + renderScrollX + this._LineWidth(line, 0, columnStart));//columnStart * columnWidth;
+					let endX;
+
+					if(currentLine == endLine)
+					{
+						endX = this._X + gutter + renderScrollX + this._LineWidth(line, 0, cursor.columnTo);//cursor.columnTo * columnWidth;
+					}
+					else
+					{
+						endX = this._X + gutter + renderScrollX + this._LineWidth(line, 0, line.length) + columnWidth;//(line.length+1) * columnWidth;
+					}
+
+					if(endX > startX)
+					{
+						//graphics.drawRect(startX-1, startY-1, endX-startX+2, lineHeight+2, 1.0, this._HighlightColor);
+						//highlightForegrounds.push(startX, startY, endX-startX, lineHeight);
+
+						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, this._HighlightColor);
+						highlightForegrounds.push(startX+1, startY+1, endX-startX-2, lineHeight-2);
+					}
+
+					if(currentLine == endLine)
+					{
+						break;
+					}
+					columnStart = 0;
+					currentLine++;
+				}
+			}
+		}
+		// Clear out the highlight foregrounds to make the effect of a cutout.
+		let highlightCount = highlightForegrounds.length/4;
+		let hidx = 0;
+		for(let i = 0; i < highlightCount; i++)
+		{
+			graphics.drawRect(highlightForegrounds[hidx], highlightForegrounds[hidx+1], highlightForegrounds[hidx+2], highlightForegrounds[hidx+3], 1.0, Pane.backgroundColor);
+			hidx += 4;
 		}
 
 		// Draw cursors.
+		let hasFocus = this._Hydrogen.focusUI === this;
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
 			let cursor = this._Cursors[i];
@@ -1758,25 +1886,28 @@ export default class Pane
 			//	let startY = Math.round(_Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
 			//	graphics.drawRect(0, startY, _Width, lineHeight, 1.0, _HighlightColor);
 			//}
-			let cursorY = this._Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
-			let cursorX = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.line], 0, cursor.column);
-			if(cursorX+1 > gutter && !this._UseDomCursor)
+			if(hasFocus)
 			{
-				graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, this._CursorColor);
-			}
+				let cursorY = this._Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
+				let cursorX = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.line], 0, cursor.column);
+				if(cursorX+1 > gutter && !this._UseDomCursor)
+				{
+					graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, this._CursorColor);
+				}
 
-			if(this._UseDomCursor)
-			{
-				let domCursor = this._GetDomCursor(i);
+				if(this._UseDomCursor)
+				{
+					let domCursor = this._GetDomCursor(i);
 
-				domCursor.style.display = cursorX+1 > gutter ? null : "none";
-				domCursor.style.transform = "translate(" + cursorX + "px, " + cursorY + "px)";
+					domCursor.style.display = cursorX+1 > gutter ? null : "none";
+					domCursor.style.transform = "translate(" + cursorX + "px, " + cursorY + "px)";
+				}
 			}
 		}
 
 		if(this._UseDomCursor)
 		{
-			for(let i = this._Cursors.length; i < this._DomCursors.length; i++)
+			for(let i = !hasFocus ? 0 : this._Cursors.length; i < this._DomCursors.length; i++)
 			{
 				this._DomCursors[i].style.display = "none";
 			}
@@ -1825,23 +1956,113 @@ export default class Pane
 		graphics.popClip();	
 	}
 
-	find(searchTerm)
+	findNext(searchTerm, pivot)
 	{
+		let cursor = this._Cursors.length ? this._Cursors[this._Cursors.length-1] : pivot;
+		if(cursor)
+		{
+			cursor =
+			{
+				lineFrom:cursor.lineTo,
+				columnFrom:cursor.columnTo
+			};
+		}
+		return this.find(searchTerm, cursor);
+	}
+
+	findPrevious(searchTerm, pivot)
+	{
+		let cursor = this._Cursors.length ? this._Cursors[this._Cursors.length-1] : pivot;
+		return this.find(searchTerm, cursor, true);
+	}
+
+	find(searchTerm, pivotCursor, backwards, append)
+	{
+		searchTerm = searchTerm.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+		
+		if(!append)
+		{
+			this._Cursors.length = 0;
+		}
+		this._Hydrogen.scheduleUpdate();
+
+		if(!searchTerm)
+		{
+			return false;
+		}
+
 		let results = this._Document.find(searchTerm);
 
-		this._Cursors.length = 0;
+		let cursor = pivotCursor ? pivotCursor : (this._Cursors.length ? this._Cursors[this._Cursors.length-1] : null);
+		let startLine = cursor ? cursor.lineFrom : 0;
+		let startColumn = cursor ? cursor.columnFrom : 0;
 
-		for(let result of results)
+		let nextResult = null; 
+		if(backwards)
+		{
+			for(let i = results.length-1; i >= 0; i--)
+			{
+				let result = results[i];
+				
+				if(result.start.line < startLine || (result.start.line == startLine && result.start.column < startColumn))
+				{
+					nextResult = result;
+					break;
+				}
+			}
+		}
+		else
+		{
+			for(let result of results)
+			{
+				if(result.start.line > startLine || (result.start.line == startLine && result.start.column >= startColumn))
+				{
+					nextResult = result;
+					break;
+				}
+			}
+		}
+
+		if(!nextResult && results.length)
+		{
+			nextResult = backwards ? results[results.length-1] : results[0];
+		}
+
+		if(nextResult)
 		{
 			let cursor = new Cursor();
-			//cursor.place(result.start.line, result.start.column);
-			cursor.span(result.start.line, result.start.column, result.end.line, result.end.column);
+			cursor.span(nextResult.start.line, nextResult.start.column, nextResult.end.line, nextResult.end.column);
 			this._Cursors.push(cursor);
 		}
   
-		//this._ValidateCursors();
-		this._EnsureCursorVisible();
-		this._Hydrogen.scheduleUpdate();
+		this._ValidateCursors();
+		if(this._Cursors.length)
+		{
+			this._EnsureCursorVisible(false, this._Cursors[this._Cursors.length-1]);
+		}
+
+		return true;
+	}
+
+	selectNext()
+	{
+		let cursor = (this._Cursors.length && this._Cursors[this._Cursors.length-1]) || null;
+		if(!cursor || !cursor.hasRange)
+		{
+			return;
+		}
+
+		let text = this.getCursorText(cursor);
+
+		if(cursor)
+		{
+			cursor =
+			{
+				lineFrom:cursor.lineTo,
+				columnFrom:cursor.columnTo
+			};
+		}
+		this.find(text, cursor, false, true);
 	}
 
 	get x()
@@ -1874,3 +2095,5 @@ export default class Pane
 		return this._Height;
 	}
 }
+
+Pane.backgroundColor = [0.12, 0.12, 0.12, 1.0];

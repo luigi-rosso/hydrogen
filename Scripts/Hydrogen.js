@@ -63,6 +63,7 @@ export default class Hydrogen
 		}
 		this._Focused = true;
 
+		this.scheduleUpdate();
 		if(this._FocusUI && this._RefocusCursors && this._FocusUI.numCursors === 0)
 		{
 			this._FocusUI.deserializeCursors(this._RefocusCursors);
@@ -77,12 +78,18 @@ export default class Hydrogen
 			return;
 		}
 		this._Focused = false;
+		this.scheduleUpdate();
 		if(this._FocusUI)
 		{
 			console.log("REMOVING THEM");
 			this._RefocusCursors = this._FocusUI.serializeCursors();
 			this._FocusUI.clearCursors();
 		}
+	}
+
+	get focusUI()
+	{
+		return document.activeElement === this._FocusElement ? this._FocusUI : null;
 	}
 
 	@bind
@@ -164,11 +171,50 @@ export default class Hydrogen
 		{
 			if(this._Panes.length === 0)
 			{
-				return;
+				return false;
 			}
 			pane = this._Panes[0];
 		}
-		pane.find(searchTerm);
+		return pane.find(searchTerm, this._RefocusCursors && this._RefocusCursors[this._RefocusCursors.length-1]);
+	}
+
+	findNext(searchTerm, pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return false;
+			}
+			pane = this._Panes[0];
+		}
+		return pane.findNext(searchTerm, this._RefocusCursors && this._RefocusCursors[this._RefocusCursors.length-1]);
+	}
+
+	selectNext(pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return false;
+			}
+			pane = this._Panes[0];
+		}
+		return pane.selectNext();
+	}
+
+	findPrevious(searchTerm, pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return false;
+			}
+			pane = this._Panes[0];
+		}
+		return pane.findPrevious(searchTerm, this._RefocusCursors && this._RefocusCursors[this._RefocusCursors.length-1]);
 	}
 
 	@bind
@@ -253,10 +299,12 @@ export default class Hydrogen
 
 	focus(ui)
 	{
+		this.scheduleUpdate();
 		if(this._FocusUI !== ui)
 		{
 			this._RefocusCursors = null;
 		}
+		this.scheduleUpdate();
 		this._FocusUI = ui;
 	}
 
@@ -348,6 +396,38 @@ export default class Hydrogen
 					{
 						this.onShowSearch(evt);
 					}
+				}
+
+				// esc
+				break;
+
+				// G for find next
+			case 71:
+				if((this._IsOSX && evt.metaKey) || evt.ctrlKey)
+				{
+					if(evt.shiftKey)
+					{
+						if(this.onSearchPrevious)
+						{
+							this.onSearchPrevious(evt);
+						}
+					}
+					else if(this.onSearchNext)
+					{
+						this.onSearchNext(evt);
+					}
+				}
+
+				// esc
+				break;
+
+				// D for select next
+			case 68:
+				if((this._IsOSX && evt.metaKey) || evt.ctrlKey)
+				{
+					evt.preventDefault();
+					evt.stopPropagation();
+					this.selectNext();
 				}
 
 				// esc
@@ -537,7 +617,7 @@ export default class Hydrogen
 			}
 		}
 
-		this._Graphics.clear([0.12, 0.12, 0.12, 1.0]);
+		this._Graphics.clear(Pane.backgroundColor);
 
 		for(let i = 0; i < this._Panes.length; i++)
 		{

@@ -11,6 +11,7 @@ export default class Document
 		this._LineBreak = "\n";
 		this._Tab = "\t";
 		this._Lines = [];
+		this._SearchCache = new Map();
 		this._MaxLineLength = 0;
 		this._MaxLineDisplayLength = 0;
 		this._NumTabSpaces = 4;
@@ -97,6 +98,7 @@ export default class Document
 	setContents(text, silent)
 	{
 		//text = "			hi this is a 			test of how this works or not does it look right?";
+		this._TextCache = null;
 		let start = Date.now();
 		this._Lines = [];
 
@@ -185,6 +187,10 @@ export default class Document
 
 	get text()
 	{
+		if(this._TextCache)
+		{
+			return this._TextCache;
+		}
 		let result = "";
 		
 		for(let i = 0; i < this._Lines.length; i++)
@@ -204,6 +210,7 @@ export default class Document
 			result += this._LineBreak;
 		}
 
+		this._TextCache = result;
 		return result;
 	}
 
@@ -242,11 +249,24 @@ export default class Document
 		return this._MaxLineDisplayLength;
 	}
 
-	find(term)
+	markDirty()
 	{
+		this.scheduleUpdateContentSize();
+		this._TextCache = null;
+		this._SearchCache.clear();
+	}
+	
+	find(term, caseSensitive)
+	{
+		let key = (!caseSensitive ? "i" + term : "_" + term);
+		let cachedResults = this._SearchCache.get(key);
+		if(cachedResults)
+		{
+			return cachedResults;
+		}	
 		let results = [];
 		let text = this.text;
-		let regex = new RegExp(term, "g");
+		let regex = new RegExp(term, caseSensitive ? "g" : "gi");
 		let match;
 		while((match = regex.exec(text)))
 		{
@@ -281,6 +301,8 @@ export default class Document
 			//console.log(line, lastIndex, " ", match.index-lastIndex);
 			results.push(result);
 		}
+
+		this._SearchCache.set(key, results);
 
 		return results;
 	}
