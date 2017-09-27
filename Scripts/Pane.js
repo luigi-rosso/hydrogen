@@ -110,6 +110,15 @@ export default class Pane
 		this._Hydrogen.scheduleUpdate();
 	}
 
+	setContents(text)
+	{
+		if(!this._Document)
+		{
+			this._Document = new Document(this, this._Hydrogen);
+		}
+		this._Document.setContents(text);
+	}
+
 	_CaptureJournalEntry()
 	{
 		let txt = this._Document.text;
@@ -557,6 +566,10 @@ export default class Pane
 
 	_DragCursor(rx, ry)
 	{
+		if(!this._Cursors.length)
+		{
+			return;
+		}
 		let cursor = this._Cursors[0];
 		if(!cursor.pivot)
 		{
@@ -1557,8 +1570,8 @@ export default class Pane
 	_LineWidth(line, start, end)
 	{
 		let columnWidth = this._Font.horizontalAdvance;
-		let t = line;
-		let tl = t.length;
+		let t = line || "";
+		let tl = t && t.length;
 		let x = 0;
 		let numTabSpaces = this._Document.numTabSpaces;
 		for(let i = start; i < end; i++)
@@ -1655,7 +1668,7 @@ export default class Pane
 			domCursor.style.backgroundColor = "rgb(" + Math.round(this._CursorColor[0] * 255) + "," + Math.round(this._CursorColor[1] * 255) + "," + Math.round(this._CursorColor[2] * 255) + ")";
 			domCursor.style.height = cursorHeight + "px";
 			this._DomCursors.push(domCursor);
-			let cursorsElement = document.getElementById("cursors");
+			let cursorsElement = this._Hydrogen._CursorsDOM;//document.getElementById("cursors");
 			cursorsElement.appendChild(domCursor);
 		}
 
@@ -1726,7 +1739,10 @@ export default class Pane
 			this._RenderScrollY += dy * ds;
 			keepRendering = true;
 		}
-
+		if(!keepRendering)
+		{
+			this._ScrollYVelocity = 0;
+		}
 		return keepRendering;
 	}
 
@@ -1798,7 +1814,7 @@ export default class Pane
 
 				while(true)
 				{
-					let line = lines[currentLine];
+					let line = lines[currentLine] || "";
 
 					let startY = Math.round(this._Y + renderScrollY + currentLine * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
 					let startX = Math.max(gutter, this._X + gutter + renderScrollX + this._LineWidth(line, 0, columnStart));//columnStart * columnWidth;

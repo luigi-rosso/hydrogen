@@ -1,5 +1,5 @@
 import React from "react";
-import {render} from "react-dom";
+import ReactDOM from "react-dom";
 import bind from "bind";
 import Hydrogen from "./Hydrogen.js";
 
@@ -15,7 +15,7 @@ class Main extends React.Component
 
 	initialize(canvas)
 	{
-        let self = this;
+        /*let self = this;
 
         let dropZone = document.body;
         dropZone.addEventListener("dragover", this.handleDragOver, false);
@@ -23,6 +23,7 @@ class Main extends React.Component
         dropZone.addEventListener("paste", this.handlePaste, false);
 
         this._Hydrogen = new Hydrogen(canvas);
+        this._Hydrogen.setContents("hello\nworld\nwhat\nis\nup");
 
         let lastMousePosition = [0,0];
 
@@ -41,7 +42,7 @@ class Main extends React.Component
         document.body.onmouseup = function(e)
         {
             self._IsDown = false;
-        };
+        };*/
     }
 
     get isDown()
@@ -81,10 +82,28 @@ class Main extends React.Component
 		this.initialize(ref);
 	}
 
+    @bind
+    setContainer1(ref)
+    {
+        this._Hydrogen1 = new Hydrogen(ReactDOM.findDOMNode(ref));
+        this._Hydrogen1.setContents("hello1\nworld\nwhat\nis\nup");
+    }
+
+    @bind
+    setContainer2(ref)
+    {
+        this._Hydrogen2 = new Hydrogen(ReactDOM.findDOMNode(ref));
+        this._Hydrogen2.setContents("hello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\n");
+    }
+
 	render()
 	{
-		return <canvas ref={this.setCanvas}></canvas>;
+		return <div>
+                <div ref={this.setContainer1} style={{width:"500px",height:"700px",border:"1px solid grey"}}></div>
+                <div ref={this.setContainer2} style={{marginTop:"10px", width:"600px",height:"800px",border:"1px solid grey"}}></div>
+                <canvas ref={this.setCanvas}></canvas>
+            </div>;
 	}
 }
 
-render(<Main/>, document.getElementById("container"));
+ReactDOM.render(<Main/>, document.getElementById("container"));
