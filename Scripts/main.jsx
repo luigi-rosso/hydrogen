@@ -1,5 +1,5 @@
 import React from "react";
-import {render} from "react-dom";
+import ReactDOM from "react-dom";
 import bind from "bind";
 import Hydrogen from "./Hydrogen.js";
 
@@ -9,44 +9,7 @@ class Main extends React.Component
 	{
 		super(props);
 
-		this._IsDown = false;
 		this._Hydrogen;
-	}
-
-	initialize(canvas)
-	{
-        let self = this;
-
-        let dropZone = document.body;
-        dropZone.addEventListener("dragover", this.handleDragOver, false);
-        dropZone.addEventListener("drop", this.handleFileSelect, false);
-        dropZone.addEventListener("paste", this.handlePaste, false);
-
-        this._Hydrogen = new Hydrogen(canvas);
-
-        let lastMousePosition = [0,0];
-
-        document.body.onmousedown = function(e)
-        {
-            self._IsDown = true;
-            lastMousePosition = [e.pageX, e.pageY];
-        };
-
-        document.body.onmousemove = function(e)
-        {
-            let mouseDelta = [e.pageX - lastMousePosition[0], e.pageY - lastMousePosition[1]];
-            lastMousePosition = [e.pageX, e.pageY];
-        };
-
-        document.body.onmouseup = function(e)
-        {
-            self._IsDown = false;
-        };
-    }
-
-    get isDown()
-    {
-		return this._IsDown;
 	}
 
 	get hydrogen()
@@ -54,37 +17,32 @@ class Main extends React.Component
 		return this._Hydrogen;
 	}
 
-	@bind
-	handleDragOver(evt) 
+    @bind
+    setContainer1(ref)
     {
-        evt.stopPropagation();
-        evt.preventDefault();
-        evt.dataTransfer.dropEffect = "copy";
+        this._Hydrogen1 = new Hydrogen(ReactDOM.findDOMNode(ref));
+        this._Hydrogen1.setContents("hello1\nworld\nwhat\nis\nup");
     }
 
     @bind
-    handlePaste(evt) 
+    setContainer2(ref)
     {
-        //_UIRoot.onpaste(evt.clipboardData.getData("text"));
+        this._Hydrogen2 = new Hydrogen(ReactDOM.findDOMNode(ref));
+        this._Hydrogen2.setContents("hello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\nhello2\nworld\nwhat\nis\nup\n");
     }
-
-    @bind
-    handleFileSelect(evt)
-    {
-        return;
-    }
-
-	@bind
-	setCanvas(ref)
-	{
-		this.canvas = ref;
-		this.initialize(ref);
-	}
 
 	render()
 	{
-		return <canvas ref={this.setCanvas}></canvas>;
+        return <div className="HorizontalSplit" style={{position:"absolute"}}>
+            <div className="FirstHorizontalSplit"></div>
+            <div className="SecondHorizontalSplit">
+                <div className="VerticalSplit">
+                    <div ref={this.setContainer1} className="FirstVerticalSplit"></div>
+                    <div ref={this.setContainer2} className="SecondVerticalSplit"></div>
+                </div>
+            </div>
+        </div>;
 	}
 }
 
-render(<Main/>, document.getElementById("container"));
+ReactDOM.render(<Main/>, document.getElementById("container"));

@@ -5,11 +5,35 @@ import Pane from "./Pane.js";
 
 export default class Hydrogen
 {
-	constructor(canvas, font)
+	constructor(container, font)
 	{
+		let fakeFocus = document.createElement("button");
+		container.appendChild(fakeFocus);
+		fakeFocus.style.position = "absolute";
+		fakeFocus.style.width = "1px";
+		fakeFocus.style.height = "1px";
+		fakeFocus.style.outline = "none";
+		fakeFocus.style.border = "none";
+		fakeFocus.style.background = "none";
+		fakeFocus.style.padding = "0";
+
+		let canvas = document.createElement("canvas");
+		container.appendChild(canvas);
+		canvas.style.imageRendering = "pixelated";
+		canvas.style.position = "absolute";
+
+		let cursorsDOM = document.createElement("div");
+		this._CursorsDOM = cursorsDOM;
+		container.appendChild(cursorsDOM);
+		//cursorsDOM.style.width = "100%";
+		//cursorsDOM.style.height = "100%";
+		cursorsDOM.style.position = "absolute";
+		cursorsDOM.className = "cursors";
+
+		this._Container = container;
 		this._Canvas = canvas;
 		this._Hydrogen = this;
-		this._FocusElement = document.body;
+		this._FocusElement = fakeFocus;
 		this._Font = new CachedFont(font || "Fonts/Terminus.ttf16.cache");
 		let self = this;
 		this._Font.onReady = function()
@@ -41,10 +65,10 @@ export default class Hydrogen
 		document.body.addEventListener("cut", this._OnCut, true);
 		canvas.addEventListener("mousewheel", this._OnMouseWheel, false);
 		canvas.addEventListener("mousedown", this._OnMouseDown, false);
-		window.addEventListener("mousemove", this._OnMouseMove, true);
-		window.addEventListener("mouseup", this._OnMouseUp, true);
-		document.body.addEventListener("keypress", this._OnKeyPress, false);
-		document.body.addEventListener("keydown", this._OnKeyDown, false);
+		document.body.addEventListener("mousemove", this._OnMouseMove, true);
+		document.body.addEventListener("mouseup", this._OnMouseUp, true);
+		fakeFocus.addEventListener("keypress", this._OnKeyPress, false);
+		fakeFocus.addEventListener("keydown", this._OnKeyDown, false);
 
 		// Detect general focus changes.
 		document.addEventListener("focusin", this.onFocusIn);
@@ -165,6 +189,19 @@ export default class Hydrogen
 		pane.openFile(file);
 	}
 
+	setContents(text, pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return;
+			}
+			pane = this._Panes[0];
+		}
+		pane.setContents(text);
+	}
+
 	find(searchTerm, pane)
 	{
 		if(!pane)
@@ -224,10 +261,13 @@ export default class Hydrogen
 		evt.stopPropagation();
 		evt.preventDefault();
 
+		let x = evt.offsetX;
+		let y = evt.offsetY;
+
 		for(let i = 0; i < this._Panes.length; i++)
 		{
 			let pane = this._Panes[i];
-			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			if(x >= pane.x && x <= pane.x2 && y >= pane.y && y <= pane.y2)
 			{
 				let files = evt.dataTransfer.files;
 
@@ -286,10 +326,13 @@ export default class Hydrogen
 		evt.stopPropagation();
 		evt.preventDefault();
 
+		let x = evt.offsetX;
+		let y = evt.offsetY;
+
 		for(let i = 0; i < this._Panes.length; i++)
 		{
 			let pane = this._Panes[i];
-			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			if(x >= pane.x && x <= pane.x2 && y >= pane.y && y <= pane.y2)
 			{
 				pane.onMouseWheel(evt);
 				break;
@@ -316,8 +359,12 @@ export default class Hydrogen
 	@bind
 	_OnMouseDown(evt)
 	{
+		this._FocusElement.focus();
 		evt.stopPropagation();
 		evt.preventDefault();
+
+		let x = evt.offsetX;
+		let y = evt.offsetY;
 
 		// Clear focus from any other items that may be in the DOM (usually this resets the document.activeElement to the body).
 		if(document.activeElement !== this._FocusElement)
@@ -327,9 +374,9 @@ export default class Hydrogen
 		for(let i = 0; i < this._Panes.length; i++)
 		{
 			let pane = this._Panes[i];
-			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			if(x >= pane.x && x <= pane.x2 && y >= pane.y && y <= pane.y2)
 			{
-				pane.onMouseDown(evt, evt.x-pane.x, evt.y-pane.y);
+				pane.onMouseDown(evt, x-pane.x, y-pane.y);
 				break;
 			}
 		}
@@ -338,21 +385,30 @@ export default class Hydrogen
 	@bind
 	_OnMouseMove(evt)
 	{
+		if(document.activeElement !== this._FocusElement)
+		{
+			return;
+		}
 		evt.stopPropagation();
 		evt.preventDefault();
 
+		let rect = this._Container.getBoundingClientRect();
+
+		let x = evt.clientX - rect.left;
+		let y = evt.clientY - rect.top;
+
 		if(this._MouseCaptureUI)
 		{
-			this._MouseCaptureUI.onMouseMove(evt, evt.x-this._MouseCaptureUI.x, evt.y-this._MouseCaptureUI.y);
+			this._MouseCaptureUI.onMouseMove(evt, x-this._MouseCaptureUI.x, y-this._MouseCaptureUI.y);
 			return;
 		}
 
 		for(let i = 0; i < this._Panes.length; i++)
 		{
 			let pane = this._Panes[i];
-			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			if(x >= pane.x && x <= pane.x2 && y >= pane.y && y <= pane.y2)
 			{
-				pane.onMouseMove(evt, evt.x-pane.x, evt.y-pane.y);
+				pane.onMouseMove(evt, x-pane.x, y-pane.y);
 				break;
 			}
 		}
@@ -364,9 +420,14 @@ export default class Hydrogen
 		evt.stopPropagation();
 		evt.preventDefault();
 
+		let rect = this._Container.getBoundingClientRect();
+
+		let x = evt.clientX - rect.left;
+		let y = evt.clientY - rect.top;
+
 		if(this._MouseCaptureUI)
 		{
-			this._MouseCaptureUI.onMouseUp(evt, evt.x-this._MouseCaptureUI.x, evt.y-this._MouseCaptureUI.y);
+			this._MouseCaptureUI.onMouseUp(evt, x-this._MouseCaptureUI.x, y-this._MouseCaptureUI.y);
 			this._MouseCaptureUI = null;
 			return;
 		}
@@ -374,9 +435,9 @@ export default class Hydrogen
 		for(let i = 0; i < this._Panes.length; i++)
 		{
 			let pane = this._Panes[i];
-			if(evt.x >= pane.x && evt.x <= pane.x2 && evt.y >= pane.y && evt.y <= pane.y2)
+			if(x >= pane.x && x <= pane.x2 && y >= pane.y && y <= pane.y2)
 			{
-				pane.onMouseUp(evt, evt.x-pane.x, evt.y-pane.y);
+				pane.onMouseUp(evt, x-pane.x, y-pane.y);
 				break;
 			}
 		}
@@ -582,8 +643,12 @@ export default class Hydrogen
 	@bind
 	_SizeToFit()
 	{
-		this._Canvas.width = window.innerWidth;
-		this._Canvas.height = window.innerHeight;
+		let rect = this._Container.getBoundingClientRect();
+		this._Canvas.width = rect.width;
+		this._Canvas.height = rect.height;
+		this._CursorsDOM.style.width = rect.width + "px";
+		this._CursorsDOM.style.height = rect.height + "px";
+		//cursorsDOM.style.height = "100%";
 		this._Graphics.setViewport(0.0, 0.0, this._Canvas.width, this._Canvas.height);
 
 		let x = 0;
