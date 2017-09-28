@@ -414,6 +414,20 @@ export default class Hydrogen
 		}
 	}
 
+	get forceHighlight()
+	{
+		return (this._Panes.length && this._Panes[0].forceHighlight) ? true : false;
+	}
+
+	set forceHighlight(f)
+	{
+		for(let i = 0; i < this._Panes.length; i++)
+		{
+			let pane = this._Panes[i];
+			pane.forceHighlight = f;
+		}
+	}
+	
 	@bind
 	_OnMouseUp(evt)
 	{
