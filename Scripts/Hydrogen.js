@@ -12,6 +12,10 @@ export default class Hydrogen
 		fakeFocus.style.position = "absolute";
 		fakeFocus.style.width = "1px";
 		fakeFocus.style.height = "1px";
+		fakeFocus.style.outline = "none";
+		fakeFocus.style.border = "none";
+		fakeFocus.style.background = "none";
+		fakeFocus.style.padding = "0";
 
 		let canvas = document.createElement("canvas");
 		container.appendChild(canvas);

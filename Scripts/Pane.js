@@ -11,7 +11,9 @@ export default class Pane
 		this._X = 0;
 		this._Y = 0;
 		this._Width = 0;
-		this.let = 0;
+		this._Height = 0;
+		this.forceHighlight = false;
+
 
 		this._X2 = 0;
 		this._Y2 = 0;
@@ -437,7 +439,7 @@ export default class Pane
 		}
 		
 		let searchTerm = this.getCursorText(cursor);
-		if(!searchTerm)
+		if(!searchTerm || (searchTerm.length < 3 && !this.forceHighlight))
 		{
 			return;
 		}

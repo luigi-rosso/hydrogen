@@ -9,77 +9,12 @@ class Main extends React.Component
 	{
 		super(props);
 
-		this._IsDown = false;
 		this._Hydrogen;
-	}
-
-	initialize(canvas)
-	{
-        /*let self = this;
-
-        let dropZone = document.body;
-        dropZone.addEventListener("dragover", this.handleDragOver, false);
-        dropZone.addEventListener("drop", this.handleFileSelect, false);
-        dropZone.addEventListener("paste", this.handlePaste, false);
-
-        this._Hydrogen = new Hydrogen(canvas);
-        this._Hydrogen.setContents("hello\nworld\nwhat\nis\nup");
-
-        let lastMousePosition = [0,0];
-
-        document.body.onmousedown = function(e)
-        {
-            self._IsDown = true;
-            lastMousePosition = [e.pageX, e.pageY];
-        };
-
-        document.body.onmousemove = function(e)
-        {
-            let mouseDelta = [e.pageX - lastMousePosition[0], e.pageY - lastMousePosition[1]];
-            lastMousePosition = [e.pageX, e.pageY];
-        };
-
-        document.body.onmouseup = function(e)
-        {
-            self._IsDown = false;
-        };*/
-    }
-
-    get isDown()
-    {
-		return this._IsDown;
 	}
 
 	get hydrogen()
 	{
 		return this._Hydrogen;
-	}
-
-	@bind
-	handleDragOver(evt) 
-    {
-        evt.stopPropagation();
-        evt.preventDefault();
-        evt.dataTransfer.dropEffect = "copy";
-    }
-
-    @bind
-    handlePaste(evt) 
-    {
-        //_UIRoot.onpaste(evt.clipboardData.getData("text"));
-    }
-
-    @bind
-    handleFileSelect(evt)
-    {
-        return;
-    }
-
-	@bind
-	setCanvas(ref)
-	{
-		this.canvas = ref;
-		this.initialize(ref);
 	}
 
     @bind
@@ -98,11 +33,15 @@ class Main extends React.Component
 
 	render()
 	{
-		return <div>
-                <div ref={this.setContainer1} style={{width:"500px",height:"700px",border:"1px solid grey"}}></div>
-                <div ref={this.setContainer2} style={{marginTop:"10px", width:"600px",height:"800px",border:"1px solid grey"}}></div>
-                <canvas ref={this.setCanvas}></canvas>
-            </div>;
+        return <div className="HorizontalSplit" style={{position:"absolute"}}>
+            <div className="FirstHorizontalSplit"></div>
+            <div className="SecondHorizontalSplit">
+                <div className="VerticalSplit">
+                    <div ref={this.setContainer1} className="FirstVerticalSplit"></div>
+                    <div ref={this.setContainer2} className="SecondVerticalSplit"></div>
+                </div>
+            </div>
+        </div>;
 	}
 }
 
