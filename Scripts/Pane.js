@@ -1842,6 +1842,7 @@ export default class Pane
 
 		// Draw cursors.
 		let hasFocus = this._Hydrogen.focusUI === this;
+		let focusColor = hasFocus ? this._SelectionColor : this._HighlightColor;
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
 			let cursor = this._Cursors[i];
@@ -1870,7 +1871,7 @@ export default class Pane
 
 					if(endX > startX)
 					{
-						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, this._SelectionColor);
+						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, focusColor);
 					}
 
 					if(currentLine == endLine)
@@ -2040,6 +2041,8 @@ export default class Pane
 		{
 			this._EnsureCursorVisible(false, this._Cursors[this._Cursors.length-1]);
 		}
+
+		this.updateHighlights();
 
 		return true;
 	}
