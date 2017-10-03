@@ -13,7 +13,9 @@ export default class Pane
 		this._Width = 0;
 		this._Height = 0;
 		this.forceHighlight = false;
-
+		this._CachedContentWidth = 0;
+		this._CachedContentHeight = 0;
+		this._ShowLineNumbers = true;
 
 		this._X2 = 0;
 		this._Y2 = 0;
@@ -62,6 +64,17 @@ export default class Pane
 
 		this._MouseX = 0;
 		this._MouseY = 0;
+	}
+
+	get showLineNumbers()
+	{
+		return this._ShowLineNumbers;
+	}
+
+	set showLineNumbers(s)
+	{
+		this._ShowLineNumbers = s;
+		this._Hydrogen.scheduleUpdate();
 	}
 	
 	setFont(font)
@@ -267,8 +280,14 @@ export default class Pane
 	{
 		let lines = this._Document.lines;
 
-		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
-		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
+
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(this._ShowLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
 
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 		let firstLine = Math.floor(-this._ScrollY / lineHeight);
@@ -468,6 +487,61 @@ export default class Pane
 		this._HighlightsTimeout = setTimeout(this.highlight, 1);
 	}
 
+	get scrollX()
+	{
+		return this._RenderScrollX;
+	}
+
+	set scrollX(value)
+	{
+		if(this._ScrollX === value)
+		{
+			return;
+		}
+		this._ScrollYVelocity = 0.0;
+		this._ScrollX = value;
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
+	}
+	
+	get scrollY()
+	{
+		return this._RenderScrollY;
+	}
+
+	set scrollY(value)
+	{
+		if(this._ScrollY === value)
+		{
+			return;
+		}
+		this._ScrollY = value;
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
+	}
+
+	get contentHeight()
+	{
+		return this._CachedContentHeight;
+		/*if(!this._Document)
+		{
+			return 0;
+		}
+		let lines = this._Document.lines;
+		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		return lines.length * lineHeight;*/
+	}
+
+	get contentWidth()
+	{
+		return this._CachedContentWidth;
+		/*if(!this._Document)
+		{
+			return 0;
+		}
+		return this._Document.maxLineDisplayLength * this._Font.horizontalAdvance + 100;*/
+	}
+
 	_EnsureCursorVisible(closest, specificCursor)
 	{
 		if(this._Cursors.length === 0)
@@ -477,8 +551,15 @@ export default class Pane
 
 		let lines = this._Document.lines;
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
-		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
-		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
+
+
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(this._ShowLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
 
 		let renderScrollY = Math.round(this._ScrollY);
 		let renderScrollX = Math.round(this._ScrollX);
@@ -1552,8 +1633,13 @@ export default class Pane
 		{
 			return;
 		}
-		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
-		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(this._ShowLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
 
 		let paneWidth = this._Width - gutter;
 		let paneHeight = this._Height;
@@ -1745,7 +1831,26 @@ export default class Pane
 		{
 			this._ScrollYVelocity = 0;
 		}
+
 		return keepRendering;
+	}
+
+	updateContentSize()
+	{
+		if(this._Document)
+		{
+			let lines = this._Document.lines;
+			let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+			let contentHeight = lines.length * lineHeight;
+			let contentWidth = this._Document.maxLineDisplayLength * this._Font.horizontalAdvance + 100;
+			if(contentWidth != this._CachedContentWidth || contentHeight != this._CachedContentHeight)
+			{
+				this._CachedContentWidth = contentWidth;
+				this._CachedContentHeight = contentHeight;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@bind
@@ -1760,9 +1865,15 @@ export default class Pane
 
 		graphics.setTabSpaces(this._Document.numTabSpaces);
 		let lines = this._Document.lines;
+		let showLineNumbers = this._ShowLineNumbers;
 
-		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
-		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(showLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
 
 		let glyphMap = this._Font.map;
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
@@ -1932,6 +2043,7 @@ export default class Pane
 			}
 		}
 
+		// Draw gutter.
 		graphics.pushClip(this._X+gutter, this._Y, this._Width-gutter, this._Height);
 		if(graphics.setFont(this._Font, 1.0, this._CodeColor))
 		{	
@@ -1951,23 +2063,26 @@ export default class Pane
 			}
 			graphics.popClip();
 			graphics.pushClip(this._X, this._Y, gutter, this._Height);
-			// Draw lines.
-			if(graphics.setFont(this._Font, 1.0, this._LineLabelColor))
-			{	
-				let x = this._X + this._GutterPadding + maxLabelWidth;
-				let y = this._Y + firstLineOrigin;
-				for(let i = firstLine; i <= lastLine; i++)
-				{
-					let lineNumberLabel = (i+1).toString();
-					let label = new Uint32Array(lineNumberLabel.length);
-					for(let ln = 0; ln < label.length; ln++)
+			if(showLineNumbers)
+			{
+				// Draw line numbers.
+				if(graphics.setFont(this._Font, 1.0, this._LineLabelColor))
+				{	
+					let x = this._X + this._GutterPadding + maxLabelWidth;
+					let y = this._Y + firstLineOrigin;
+					for(let i = firstLine; i <= lastLine; i++)
 					{
-						label[ln] = lineNumberLabel.codePointAt(ln);
+						let lineNumberLabel = (i+1).toString();
+						let label = new Uint32Array(lineNumberLabel.length);
+						for(let ln = 0; ln < label.length; ln++)
+						{
+							label[ln] = lineNumberLabel.codePointAt(ln);
+						}
+
+						graphics.drawText(0, x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
+
+						y += lineHeight;
 					}
-
-					graphics.drawText(0, x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
-
-					y += lineHeight;
 				}
 			}
 		}

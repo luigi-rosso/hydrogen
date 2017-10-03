@@ -25,8 +25,6 @@ export default class Hydrogen
 		let cursorsDOM = document.createElement("div");
 		this._CursorsDOM = cursorsDOM;
 		container.appendChild(cursorsDOM);
-		//cursorsDOM.style.width = "100%";
-		//cursorsDOM.style.height = "100%";
 		cursorsDOM.style.position = "absolute";
 		cursorsDOM.className = "cursors";
 
@@ -150,19 +148,18 @@ export default class Hydrogen
 		pane.setFont(this._Font);
 		this._Panes.push(pane);
 
-		this._SizeToFit();	
+		this.updatePanes();	
 	}
 
 	@bind
 	_OnResize()
 	{
-		this._SizeToFit();	
+		this.sizeToFit();	
 	}
 
 	@bind
 	_OnDragOver(evt)
 	{
-		console.log("DRAG OVER");
 		evt.stopPropagation();
 		evt.preventDefault();
 		evt.dataTransfer.dropEffect = "copy";
@@ -257,7 +254,6 @@ export default class Hydrogen
 	@bind
 	_OnDragDrop(evt)
 	{
-		console.log("DROP!");
 		evt.stopPropagation();
 		evt.preventDefault();
 
@@ -300,7 +296,6 @@ export default class Hydrogen
 		let data = this._FocusUI.onCopy();
 		if(data)
 		{
-			//console.log("SETTING DATA", data);
 			e.clipboardData.setData("text/plain", data);
 			e.preventDefault();
 		}
@@ -654,10 +649,30 @@ export default class Hydrogen
 		}
 	}
 
+	updatePanes()
+	{
+		let x = 0;
+		let y = 0;
+		for(let i = 0; i < this._Panes.length; i++)
+		{
+			let pane = this._Panes[i];
+			pane.place(x, y, this._Canvas.width * pane.xf, this._Canvas.height * pane.yf);
+			x += pane.width;
+		}
+
+		this.scheduleUpdate();
+	}
+	
 	@bind
-	_SizeToFit()
+	sizeToFit()
 	{
 		let rect = this._Container.getBoundingClientRect();
+
+		let {width, height} = this._Canvas;
+		if(width === rect.width && height === rect.height)
+		{
+			return;
+		}
 		this._Canvas.width = rect.width;
 		this._Canvas.height = rect.height;
 		this._CursorsDOM.style.width = rect.width + "px";
@@ -665,17 +680,102 @@ export default class Hydrogen
 		//cursorsDOM.style.height = "100%";
 		this._Graphics.setViewport(0.0, 0.0, this._Canvas.width, this._Canvas.height);
 
-		let x = 0;
-		let y = 0;
-		let width = this._Canvas.width;
-		let height = this._Canvas.height;
-		for(let i = 0; i < this._Panes.length; i++)
+		this.updatePanes();
+
+		if(this.onLayout)
 		{
-			let pane = this._Panes[i];
-			pane.place(x, y, this._Canvas.width * pane.xf, this._Canvas.height * pane.yf);
-			x += pane.width;
-			//y += pane.height;
+			this.onLayout();
 		}
+	}
+
+	get width()
+	{
+		return this._Canvas.width;
+	}
+
+	get height()
+	{
+		return this._Canvas.height;
+	}
+
+	get contentWidth()
+	{
+		if(this._Panes.length === 0)
+		{
+			return 0;
+		}
+		let pane = this._Panes[0];
+		return pane.contentWidth;
+	}
+
+	get contentHeight()
+	{
+		if(this._Panes.length === 0)
+		{
+			return 0;
+		}
+		let pane = this._Panes[0];
+		return pane.contentHeight;
+	}
+
+	get scrollX()
+	{
+		if(this._Panes.length === 0)
+		{
+			return 0;
+		}
+		let pane = this._Panes[0];
+		return pane.scrollX;
+	}
+
+	set scrollX(value)
+	{
+		if(this._Panes.length === 0)
+		{
+			return 0;
+		}
+		let pane = this._Panes[0];
+		pane.scrollX = value;
+	}
+
+	get scrollY()
+	{
+		if(this._Panes.length === 0)
+		{
+			return 0;
+		}
+		let pane = this._Panes[0];
+		return pane.scrollY;
+	}
+
+	set scrollY(value)
+	{
+		if(this._Panes.length === 0)
+		{
+			return 0;
+		}
+		let pane = this._Panes[0];
+		pane.scrollY = value;
+	}
+
+	get showLineNumbers()
+	{
+		if(this._Panes.length === 0)
+		{
+			return false;
+		}
+		let pane = this._Panes[0];
+		return pane.showLineNumbers;
+	}
+
+	set showLineNumbers(v)
+	{
+		if(this._Panes.length === 0)
+		{
+			return;
+		}
+		let pane = this._Panes[0];
+		pane.showLineNumbers = v;
 	}
 
 	@bind
@@ -687,12 +787,18 @@ export default class Hydrogen
 		this._UpdateTime = now;
 
 		let redraw = false;
+		let resized = false;
 		for(let i = 0; i < this._Panes.length; i++)
 		{
 			let pane = this._Panes[i];
 			if(pane.advance(elapsedS))
 			{
 				redraw = true;
+			}
+			if(pane.updateContentSize())
+			{
+				redraw = true;
+				resized = true;
 			}
 		}
 
@@ -712,6 +818,11 @@ export default class Hydrogen
 		else
 		{
 			this._WillAdvanceNextFrame = false;
+		}
+
+		if(this.onLayout)
+		{
+			this.onLayout();
 		}
 	}
 
