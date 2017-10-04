@@ -1,6 +1,7 @@
 import bind from "bind";
 import Cursor from "./Cursor.js";
 import Document from "./Document.js";
+import _ from "lodash/core";
 
 export default class Pane
 {
@@ -10,7 +11,11 @@ export default class Pane
 		this._X = 0;
 		this._Y = 0;
 		this._Width = 0;
-		this.let = 0;
+		this._Height = 0;
+		this.forceHighlight = false;
+		this._CachedContentWidth = 0;
+		this._CachedContentHeight = 0;
+		this._ShowLineNumbers = true;
 
 		this._X2 = 0;
 		this._Y2 = 0;
@@ -32,7 +37,8 @@ export default class Pane
 		this._CursorColor = [1.0, 0.7, 0.0, 1.0];
 		this._LineLabelColor = [0.3, 0.3, 0.3, 1.0];
 		this._SelectionColor = [0.2, 0.2, 0.2, 1.0];
-		this._HighlightColor = [0.07, 0.07, 0.07, 1.0];
+		this._HighlightColor = [1.0*0.75, 0.7*0.75, 0.0*0.75, 1.0];
+		this._LineFocusColor = [0.07, 0.07, 0.07, 1.0];
 
 		this._ScrollX = 0.0;
 		this._ScrollY = 0.0;
@@ -46,6 +52,7 @@ export default class Pane
 		this._Document;
 
 		this._Cursors = [];
+		this._Highlights = [];
 		this._IsDragging = false;
 		this._ChangeTimeout = null;
 
@@ -57,6 +64,17 @@ export default class Pane
 
 		this._MouseX = 0;
 		this._MouseY = 0;
+	}
+
+	get showLineNumbers()
+	{
+		return this._ShowLineNumbers;
+	}
+
+	set showLineNumbers(s)
+	{
+		this._ShowLineNumbers = s;
+		this._Hydrogen.scheduleUpdate();
 	}
 	
 	setFont(font)
@@ -80,6 +98,16 @@ export default class Pane
 		this._Hydrogen.scheduleUpdate();
 	}
 
+	placeCursor(line, column)
+	{
+		let cursor = new Cursor();
+		cursor.place(line, column);
+		this._Cursors.length = 0;
+		this._Cursors.push(cursor);
+		this._ValidateCursors();
+		this._Hydrogen.scheduleUpdate();
+	}
+
 	@bind
 	onDocumentContentsChanged()
 	{
@@ -89,8 +117,8 @@ export default class Pane
 	}
 
 	@bind
-    openFile(file)
-    {
+	openFile(file)
+	{
 		this._Document = new Document(this, this._Hydrogen);
 		/*this._Document.onContentsChange = function()
 		{
@@ -102,12 +130,22 @@ export default class Pane
 		};*/
 		this._Document.fromFile(file);
 		this._Cursors = [];
+		this._Highlights = [];
 		this._ClampScroll();
 		this._Hydrogen.scheduleUpdate();
-    }
+	}
 
-    _CaptureJournalEntry()
-    {
+	setContents(text)
+	{
+		if(!this._Document)
+		{
+			this._Document = new Document(this, this._Hydrogen);
+		}
+		this._Document.setContents(text);
+	}
+
+	_CaptureJournalEntry()
+	{
 		let txt = this._Document.text;
 
 		let entry = {
@@ -128,7 +166,42 @@ export default class Pane
 		}
 		this._Journal.push(entry);
 		this._JournalIndex = this._Journal.length-1;
-    }
+	}
+
+	clearCursors()
+	{
+		this._Cursors.length = 0;
+		this.updateHighlights();
+		this._Hydrogen.scheduleUpdate();
+	}
+
+	get numCursors()
+	{
+		return this._Cursors.length;
+	}
+
+	serializeCursors()
+	{
+		let cursors = [];
+		for(let cursor of this._Cursors)
+		{
+			cursors.push(cursor.serialize());
+		}
+		return cursors;
+	}
+
+	deserializeCursors(cursors)
+	{
+		this._Cursors.length = 0;
+		this.updateHighlights();
+		for(let i = 0; i < cursors.length; i++)
+		{
+			let cursorData = cursors[i];
+			this._Cursors.push(new Cursor(cursorData));
+		}
+
+		this._Hydrogen.scheduleUpdate();
+	}
 
 	onPaste(data)
 	{
@@ -145,11 +218,51 @@ export default class Pane
 		for(let ti = 0; ti < intArray.length; ti++)
 		{
 			let codePoint = (intArray[ti] << 11) >>> 11;
-            let char = String.fromCodePoint(codePoint);
+			let char = String.fromCodePoint(codePoint);
 			result += char;
 		}
 
 		return result;
+	}
+
+	getCursorText(cursor, data)
+	{
+		let lines = this._Document.lines;
+		if(cursor.hasRange)
+		{
+			if(cursor.lineFrom === cursor.lineTo)
+			{
+				let line = lines[cursor.lineFrom];
+				let sel = this._ConvertToText(line.slice(cursor.columnFrom, cursor.columnTo));
+				if(data)
+				{
+					data.push(sel);
+				}
+				else
+				{
+					return sel;
+				}
+			}
+			else
+			{
+				let append = data || [];
+				let sel = this._ConvertToText(lines[cursor.lineFrom].slice(cursor.columnFrom));
+				append.push(sel);
+				for(let j = cursor.lineFrom+1; j < cursor.lineTo; j++)
+				{
+					sel = this._ConvertToText(lines[j]);
+					append.push(sel);
+				}
+
+				sel = this._ConvertToText(lines[cursor.lineTo].slice(0, cursor.columnTo));
+				append.push(sel);
+				if(!data)
+				{
+					return append.join(this._Document.lineBreak);
+				}
+			}
+		}
+		return null;
 	}
 
 	onCopy()
@@ -159,28 +272,8 @@ export default class Pane
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
 			let cursor = this._Cursors[i];
-			if(cursor.hasRange)
-			{
-				if(cursor.lineFrom === cursor.lineTo)
-				{
-					let line = lines[cursor.lineFrom];
-					let sel = this._ConvertToText(line.slice(cursor.columnFrom, cursor.columnTo));
-					data.push(sel);
-				}
-				else
-				{
-					let sel = this._ConvertToText(lines[cursor.lineFrom].slice(cursor.columnFrom));
-					data.push(sel);
-					for(let j = cursor.lineFrom+1; j < cursor.lineTo; j++)
-					{
-						sel = this._ConvertToText(lines[j]);
-						data.push(sel);
-					}
 
-					sel = this._ConvertToText(lines[cursor.lineTo].slice(0, cursor.columnTo));
-					data.push(sel);
-				}
-			}
+			this.getCursorText(cursor, data);
 		}
 
 		let finalData = data.length ? data.join(this._Document.lineBreak) : null;
@@ -197,8 +290,14 @@ export default class Pane
 	{
 		let lines = this._Document.lines;
 
-		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
-		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
+
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(this._ShowLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
 
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 		let firstLine = Math.floor(-this._ScrollY / lineHeight);
@@ -239,7 +338,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = startX + Math.floor(((x-startX) / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = startX + Math.round(((x-startX) / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					break;
 				default:
 					x += columnWidth;
@@ -303,9 +402,9 @@ export default class Pane
 			for(let i = 0; i < this._Cursors.length; i++)
 			{
 				let cur = this._Cursors[i];
-				if(cursor.lineFrom > cursorLine)
+				if(cur.lineFrom > cursorLine)
 				{
-					cursorLine = cursor.lineFrom;
+					cursorLine = cur.lineFrom;
 					cursor = cur;
 				}
 			}
@@ -333,7 +432,6 @@ export default class Pane
 			else 
 			{
 				cursor.span(cursor.lineFrom, cursor.columnFrom, hit.line, hit.column, true);
-
 			}
 		}
 		else
@@ -357,9 +455,104 @@ export default class Pane
 		cursor.setPlacedColumn(this._Document);
 		this._EnsureCursorVisible(true);
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
-	_EnsureCursorVisible(closest)
+	@bind
+	highlight()
+	{
+		let cursor = this._Cursors.length ? this._Cursors[this._Cursors.length-1] : null;
+		if(!cursor)
+		{
+			return;
+		}
+		
+		let searchTerm = this.getCursorText(cursor);
+		if(!searchTerm || (searchTerm.length < 3 && !this.forceHighlight))
+		{
+			return;
+		}
+		
+		this._Highlights.length = 0;
+		this._Hydrogen.scheduleUpdate();
+
+		searchTerm = searchTerm.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+		let results = this._Document.find(searchTerm);
+
+		for(let result of results)
+		{
+			let cursor = new Cursor();
+			cursor.span(result.start.line, result.start.column, result.end.line, result.end.column);
+			this._Highlights.push(cursor);
+		}
+	}
+
+	updateHighlights()
+	{
+		if(this._Highlights.length !== 0)
+		{
+			this._Highlights.length = 0;
+		}
+		clearTimeout(this._HighlightsTimeout);
+		this._HighlightsTimeout = setTimeout(this.highlight, 1);
+	}
+
+	get scrollX()
+	{
+		return this._RenderScrollX;
+	}
+
+	set scrollX(value)
+	{
+		if(this._ScrollX === value)
+		{
+			return;
+		}
+		this._ScrollYVelocity = 0.0;
+		this._ScrollX = value;
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
+	}
+	
+	get scrollY()
+	{
+		return this._RenderScrollY;
+	}
+
+	set scrollY(value)
+	{
+		if(this._ScrollY === value)
+		{
+			return;
+		}
+		this._ScrollY = value;
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
+	}
+
+	get contentHeight()
+	{
+		return this._CachedContentHeight;
+		/*if(!this._Document)
+		{
+			return 0;
+		}
+		let lines = this._Document.lines;
+		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		return lines.length * lineHeight;*/
+	}
+
+	get contentWidth()
+	{
+		return this._CachedContentWidth;
+		/*if(!this._Document)
+		{
+			return 0;
+		}
+		return this._Document.maxLineDisplayLength * this._Font.horizontalAdvance + 100;*/
+	}
+
+	_EnsureCursorVisible(closest, specificCursor)
 	{
 		if(this._Cursors.length === 0)
 		{
@@ -369,6 +562,15 @@ export default class Pane
 		let lines = this._Document.lines;
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 
+
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(this._ShowLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
+
 		let renderScrollY = Math.round(this._ScrollY);
 		let renderScrollX = Math.round(this._ScrollX);
 		
@@ -377,19 +579,12 @@ export default class Pane
 		let firstLine = Math.ceil(-renderScrollY / lineHeight);
 		let lastLine = Math.min(firstLine + visibleLines-1, lines.length-1); // visible lines - 1 as it's the last index
 
-		let isCursorVisible = false;
-		for(let i = 0; i < this._Cursors.length; i++)
+
+		// Changing this logic to only track the first cursor's visibility.
+		let cursor = specificCursor || this._Cursors[0];
+		let moved = false;
+		if(cursor.lineAt < firstLine || cursor.lineAt > lastLine)
 		{
-			let cursor = this._Cursors[i];
-			if(cursor.lineAt >= firstLine && cursor.lineAt <= lastLine)
-			{
-				isCursorVisible = true;
-				break;
-			}
-		}
-		if(!isCursorVisible)
-		{
-			let cursor = this._Cursors[0];
 			if(!closest)
 			{
 				this._ScrollY = -cursor.lineAt * lineHeight + this._Height/2;
@@ -412,6 +607,28 @@ export default class Pane
 					this._ScrollY = cursorBottom;
 				}
 			}
+			moved = true;
+		}
+		// Left side is less than gutter?
+		let x = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.lineAt], 0, cursor.columnFrom);
+		if(x < this._X + gutter)
+		{
+			this._ScrollX += (this._X + gutter)-x;
+			moved = true;
+		}
+		else
+		{
+			// Right side is in screen?
+			let edgePad = 20;
+			x = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.lineTo], 0, cursor.columnTo);
+			if(x + edgePad > this._X + this._Width)
+			{
+				this._ScrollX += (this._X + this._Width) - x - edgePad;
+				moved = true;
+			}
+		}
+		if(moved)
+		{
 			this._ClampScroll();
 			this._Hydrogen.scheduleUpdate();
 		}
@@ -419,22 +636,17 @@ export default class Pane
 
 	_ValidateCursors()
 	{
-		this._Cursors.sort(function(a, b)
-		{
-			return a.columnFrom - b.columnFrom;
-		});
-
-		this._Cursors.sort(function(a, b)
-		{
-			return a.lineFrom - b.lineFrom;
-		});
+		// Don't use .sort to do multi key sorting as it's not stable (elements with the same value may get swapped).
+		// Use lodash to stable sort the cursors.
+		this._Cursors = _.sortBy(this._Cursors, function(o) { return o.columnFrom; });
+		this._Cursors = _.sortBy(this._Cursors, function(o) { return o.lineFrom; });
 
 		// Merge overlaps.
 		for(let i = 0; i < this._Cursors.length-1; i++)
 		{
 			let cursorA = this._Cursors[i];
 			let cursorB = this._Cursors[i+1];
-			console.log("HERE", cursorA.serialize(), cursorB.serialize());
+			//console.log("HERE", cursorA.serialize(), cursorB.serialize());
 
 			if(cursorB.lineFrom < cursorA.lineTo || (cursorB.lineFrom == cursorA.lineTo && cursorB.columnFrom <= cursorA.columnTo))
 			{
@@ -447,6 +659,10 @@ export default class Pane
 
 	_DragCursor(rx, ry)
 	{
+		if(!this._Cursors.length)
+		{
+			return;
+		}
 		let cursor = this._Cursors[0];
 		if(!cursor.pivot)
 		{
@@ -519,6 +735,7 @@ export default class Pane
 
 	_TriggerChange()
 	{
+		this.updateHighlights();
 		if(!this._ChangeTimeout)
 		{
 			let lastEntry = this._Journal[this._JournalIndex];
@@ -532,6 +749,10 @@ export default class Pane
 		if(!this._ChangeTimeout)
 		{
 			this._ChangeTimeout = setTimeout(this._ChangeComplete, this._HistoryCaptureDelay);
+		}
+		if(this._Document)
+		{
+			this._Document.markDirty();
 		}
 		
 		this._TriggeredScrollX = this._ScrollX;
@@ -1260,6 +1481,10 @@ export default class Pane
 	@bind
 	onMouseUp(evt, rx, ry)
 	{
+		if(this._IsDragging)
+		{
+			this.updateHighlights();
+		}
 		this._IsDragging = false;
 		this._ScrollYVelocity = 0;
 		this._ValidateCursors();
@@ -1270,8 +1495,8 @@ export default class Pane
 	@bind
 	onMouseWheel(evt)
 	{
-		this._ScrollY -= evt.deltaY / 2.0;
-		this._ScrollX -= evt.deltaX / 2.0;
+		this._ScrollY -= evt.deltaY;// / 2.0;
+		this._ScrollX -= evt.deltaX;// / 2.0;
 
 		this._ClampScroll();
 		this._ScrollYVelocity = 0;
@@ -1294,6 +1519,7 @@ export default class Pane
 		this._EnsureCursorVisible(true);
 		this._MarkJustInput();
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
 	cursorUp(span)
@@ -1326,6 +1552,7 @@ export default class Pane
 		this._ValidateCursors();
 		this._EnsureCursorVisible(true);
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
 	cursorWordRight(span)
@@ -1339,6 +1566,7 @@ export default class Pane
 		this._EnsureCursorVisible(true);
 		this._MarkJustInput();
 		this._Hydrogen.scheduleUpdate();
+		this.updateHighlights();
 	}
 
 	cursorHome(span)
@@ -1415,15 +1643,20 @@ export default class Pane
 		{
 			return;
 		}
-		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
-		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(this._ShowLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
 
 		let paneWidth = this._Width - gutter;
 		let paneHeight = this._Height;
 
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
 		let contentHeight = this._Document.lines.length * lineHeight;
-		let contentWidth = this._Document.maxLineLength * this._Font.horizontalAdvance;
+		let contentWidth = this._Document.maxLineDisplayLength * this._Font.horizontalAdvance + 100;
 
 		let minScrollY = Math.min(0, paneHeight - contentHeight - 100);
 		let minScrollX = Math.min(0, paneWidth - contentWidth);
@@ -1435,8 +1668,8 @@ export default class Pane
 	_LineWidth(line, start, end)
 	{
 		let columnWidth = this._Font.horizontalAdvance;
-		let t = line;
-		let tl = t.length;
+		let t = line || "";
+		let tl = t && t.length;
 		let x = 0;
 		let numTabSpaces = this._Document.numTabSpaces;
 		for(let i = start; i < end; i++)
@@ -1445,7 +1678,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 //					x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1476,7 +1709,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					//x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1502,7 +1735,7 @@ export default class Pane
 			switch(c)
 			{
 				case 9:
-					x = Math.floor((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
+					x = Math.round((x / (numTabSpaces*columnWidth))+1)*(numTabSpaces*columnWidth);
 					//x += columnWidth * numTabSpaces;
 					break;
 				default:
@@ -1533,7 +1766,7 @@ export default class Pane
 			domCursor.style.backgroundColor = "rgb(" + Math.round(this._CursorColor[0] * 255) + "," + Math.round(this._CursorColor[1] * 255) + "," + Math.round(this._CursorColor[2] * 255) + ")";
 			domCursor.style.height = cursorHeight + "px";
 			this._DomCursors.push(domCursor);
-			let cursorsElement = document.getElementById("cursors");
+			let cursorsElement = this._Hydrogen._CursorsDOM;//document.getElementById("cursors");
 			cursorsElement.appendChild(domCursor);
 		}
 
@@ -1556,8 +1789,9 @@ export default class Pane
 				cursor = this._Cursors[i];
 				
 				domCursor = this._GetDomCursor(i);
+				domCursor.style.animation = shouldDisable ? "none" : null;
 			}
-			domCursor.style.animation = shouldDisable ? "none" : null;
+			
 			this._IsBlinkingDisabled = shouldDisable;
 		}
 	}
@@ -1603,14 +1837,36 @@ export default class Pane
 			this._RenderScrollY += dy * ds;
 			keepRendering = true;
 		}
+		if(!keepRendering)
+		{
+			this._ScrollYVelocity = 0;
+		}
 
 		return keepRendering;
+	}
+
+	updateContentSize()
+	{
+		if(this._Document)
+		{
+			let lines = this._Document.lines;
+			let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+			let contentHeight = lines.length * lineHeight;
+			let contentWidth = this._Document.maxLineDisplayLength * this._Font.horizontalAdvance + 100;
+			if(contentWidth != this._CachedContentWidth || contentHeight != this._CachedContentHeight)
+			{
+				this._CachedContentWidth = contentWidth;
+				this._CachedContentHeight = contentHeight;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@bind
 	draw(graphics)
 	{
-		if(!this._Document)
+		if(!this._Document || !this._Font.isReady)
 		{
 			return;
 		}
@@ -1619,9 +1875,15 @@ export default class Pane
 
 		graphics.setTabSpaces(this._Document.numTabSpaces);
 		let lines = this._Document.lines;
+		let showLineNumbers = this._ShowLineNumbers;
 
-		let maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
-		let gutter = this._GutterPadding + maxLabelWidth + this._GutterPadding;
+		let maxLabelWidth = 0, gutter = this._GutterPadding;
+
+		if(showLineNumbers)
+		{
+			maxLabelWidth = this._Document.maxLineDigits * this._Font.horizontalAdvance;
+			gutter += maxLabelWidth + this._GutterPadding;
+		}
 
 		let glyphMap = this._Font.map;
 		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
@@ -1644,11 +1906,11 @@ export default class Pane
 
 		graphics.pushClip(this._X, this._Y, this._Width, this._Height);
 
+
 		// Draw focused line backgrounds.
 		let lastCursorLine = -1;
-		for(let i = 0; i < this._Cursors.length; i++)
+		for(let cursor of this._Cursors)
 		{
-			let cursor = this._Cursors[i];
 			if(cursor.hasRange)
 			{
 				continue;
@@ -1659,12 +1921,67 @@ export default class Pane
 			}
 			lastCursorLine = cursor.lineFrom;
 			let startY = Math.round(this._Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
-			graphics.drawRect(0, startY, this._Width, lineHeight, 1.0, this._HighlightColor);
+			graphics.drawRect(0, startY, this._Width, lineHeight, 1.0, this._LineFocusColor);
+		}
 
+		// Draw highlights.
+		let highlightForegrounds = [];
+		for(let i = 0; i < this._Highlights.length; i++)
+		{
+			let cursor = this._Highlights[i];
+			if(cursor.hasRange)
+			{
+				let currentLine = cursor.lineFrom;
+				let endLine = cursor.lineTo;
+				let columnStart = cursor.columnFrom;
 
+				while(true)
+				{
+					let line = lines[currentLine] || "";
+
+					let startY = Math.round(this._Y + renderScrollY + currentLine * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
+					let startX = Math.max(gutter, this._X + gutter + renderScrollX + this._LineWidth(line, 0, columnStart));//columnStart * columnWidth;
+					let endX;
+
+					if(currentLine == endLine)
+					{
+						endX = this._X + gutter + renderScrollX + this._LineWidth(line, 0, cursor.columnTo);//cursor.columnTo * columnWidth;
+					}
+					else
+					{
+						endX = this._X + gutter + renderScrollX + this._LineWidth(line, 0, line.length) + columnWidth;//(line.length+1) * columnWidth;
+					}
+
+					if(endX > startX)
+					{
+						//graphics.drawRect(startX-1, startY-1, endX-startX+2, lineHeight+2, 1.0, this._HighlightColor);
+						//highlightForegrounds.push(startX, startY, endX-startX, lineHeight);
+
+						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, this._HighlightColor);
+						highlightForegrounds.push(startX+1, startY+1, endX-startX-2, lineHeight-2);
+					}
+
+					if(currentLine == endLine)
+					{
+						break;
+					}
+					columnStart = 0;
+					currentLine++;
+				}
+			}
+		}
+		// Clear out the highlight foregrounds to make the effect of a cutout.
+		let highlightCount = highlightForegrounds.length/4;
+		let hidx = 0;
+		for(let i = 0; i < highlightCount; i++)
+		{
+			graphics.drawRect(highlightForegrounds[hidx], highlightForegrounds[hidx+1], highlightForegrounds[hidx+2], highlightForegrounds[hidx+3], 1.0, Pane.backgroundColor);
+			hidx += 4;
 		}
 
 		// Draw cursors.
+		let hasFocus = this._Hydrogen.focusUI === this;
+		let focusColor = hasFocus ? this._SelectionColor : this._HighlightColor;
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
 			let cursor = this._Cursors[i];
@@ -1693,7 +2010,7 @@ export default class Pane
 
 					if(endX > startX)
 					{
-						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, this._SelectionColor);
+						graphics.drawRect(startX, startY, endX-startX, lineHeight, 1.0, focusColor);
 					}
 
 					if(currentLine == endLine)
@@ -1709,30 +2026,34 @@ export default class Pane
 			//	let startY = Math.round(_Y + renderScrollY + cursor.lineFrom * lineHeight + lineHeight - cursorHeight + cursorHeight/2 - lineHeight/2.0);
 			//	graphics.drawRect(0, startY, _Width, lineHeight, 1.0, _HighlightColor);
 			//}
-			let cursorY = this._Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
-			let cursorX = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.line], 0, cursor.column);
-			if(cursorX+1 > gutter && !this._UseDomCursor)
+			if(hasFocus)
 			{
-				graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, this._CursorColor);
-			}
+				let cursorY = this._Y + renderScrollY + cursor.line * lineHeight + lineHeight - cursorHeight;
+				let cursorX = this._X + gutter + renderScrollX + this._LineWidth(lines[cursor.line], 0, cursor.column);
+				if(cursorX+1 > gutter && !this._UseDomCursor)
+				{
+					graphics.drawRect(cursorX, cursorY, 1.0, cursorHeight, 1.0, this._CursorColor);
+				}
 
-			if(this._UseDomCursor)
-			{
-				let domCursor = this._GetDomCursor(i);
+				if(this._UseDomCursor)
+				{
+					let domCursor = this._GetDomCursor(i);
 
-				domCursor.style.display = cursorX+1 > gutter ? null : "none";
-				domCursor.style.transform = "translate(" + cursorX + "px, " + cursorY + "px)";
+					domCursor.style.display = cursorX+1 > gutter ? null : "none";
+					domCursor.style.transform = "translate(" + cursorX + "px, " + cursorY + "px)";
+				}
 			}
 		}
 
 		if(this._UseDomCursor)
 		{
-			for(let i = this._Cursors.length; i < this._DomCursors.length; i++)
+			for(let i = !hasFocus ? 0 : this._Cursors.length; i < this._DomCursors.length; i++)
 			{
 				this._DomCursors[i].style.display = "none";
 			}
 		}
 
+		// Draw gutter.
 		graphics.pushClip(this._X+gutter, this._Y, this._Width-gutter, this._Height);
 		if(graphics.setFont(this._Font, 1.0, this._CodeColor))
 		{	
@@ -1746,30 +2067,32 @@ export default class Pane
 
 				let visRange = this._VisibleColumns(line, -renderScrollX, this._Width - renderScrollX);
 
-				let x = visRange.firstX;//this._X+gutter+firstColumnOrigin;
-
-				graphics.drawText(renderScrollX+gutter+x, y+baseLine, line, visRange.first, visRange.last);
+				let startX = renderScrollX+gutter;
+				graphics.drawText(startX, startX+visRange.firstX, y+baseLine, line, visRange.first, visRange.last);
 				y += lineHeight;
 			}
 			graphics.popClip();
 			graphics.pushClip(this._X, this._Y, gutter, this._Height);
-			// Draw lines.
-			if(graphics.setFont(this._Font, 1.0, this._LineLabelColor))
-			{	
-				let x = this._X + this._GutterPadding + maxLabelWidth;
-				let y = this._Y + firstLineOrigin;
-				for(let i = firstLine; i <= lastLine; i++)
-				{
-					let lineNumberLabel = (i+1).toString();
-					let label = new Uint32Array(lineNumberLabel.length);
-					for(let ln = 0; ln < label.length; ln++)
+			if(showLineNumbers)
+			{
+				// Draw line numbers.
+				if(graphics.setFont(this._Font, 1.0, this._LineLabelColor))
+				{	
+					let x = this._X + this._GutterPadding + maxLabelWidth;
+					let y = this._Y + firstLineOrigin;
+					for(let i = firstLine; i <= lastLine; i++)
 					{
-						label[ln] = lineNumberLabel.codePointAt(ln);
+						let lineNumberLabel = (i+1).toString();
+						let label = new Uint32Array(lineNumberLabel.length);
+						for(let ln = 0; ln < label.length; ln++)
+						{
+							label[ln] = lineNumberLabel.codePointAt(ln);
+						}
+
+						graphics.drawText(0, x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
+
+						y += lineHeight;
 					}
-
-					graphics.drawText(x - (label.length*this._Font.horizontalAdvance), y+baseLine, label);
-
-					y += lineHeight;
 				}
 			}
 		}
@@ -1777,34 +2100,146 @@ export default class Pane
 		graphics.popClip();	
 	}
 
+	findNext(searchTerm, pivot)
+	{
+		let cursor = this._Cursors.length ? this._Cursors[this._Cursors.length-1] : pivot;
+		if(cursor)
+		{
+			cursor =
+			{
+				lineFrom:cursor.lineTo,
+				columnFrom:cursor.columnTo
+			};
+		}
+		return this.find(searchTerm, cursor);
+	}
+
+	findPrevious(searchTerm, pivot)
+	{
+		let cursor = this._Cursors.length ? this._Cursors[this._Cursors.length-1] : pivot;
+		return this.find(searchTerm, cursor, true);
+	}
+
+	find(searchTerm, pivotCursor, backwards, append)
+	{
+		searchTerm = searchTerm.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+		
+		if(!append)
+		{
+			this._Cursors.length = 0;
+		}
+		this._Hydrogen.scheduleUpdate();
+
+		if(!searchTerm)
+		{
+			return false;
+		}
+
+		let results = this._Document.find(searchTerm);
+
+		let cursor = pivotCursor ? pivotCursor : (this._Cursors.length ? this._Cursors[this._Cursors.length-1] : null);
+		let startLine = cursor ? cursor.lineFrom : 0;
+		let startColumn = cursor ? cursor.columnFrom : 0;
+
+		let nextResult = null; 
+		if(backwards)
+		{
+			for(let i = results.length-1; i >= 0; i--)
+			{
+				let result = results[i];
+				
+				if(result.start.line < startLine || (result.start.line == startLine && result.start.column < startColumn))
+				{
+					nextResult = result;
+					break;
+				}
+			}
+		}
+		else
+		{
+			for(let result of results)
+			{
+				if(result.start.line > startLine || (result.start.line == startLine && result.start.column >= startColumn))
+				{
+					nextResult = result;
+					break;
+				}
+			}
+		}
+
+		if(!nextResult && results.length)
+		{
+			nextResult = backwards ? results[results.length-1] : results[0];
+		}
+
+		if(nextResult)
+		{
+			let cursor = new Cursor();
+			cursor.span(nextResult.start.line, nextResult.start.column, nextResult.end.line, nextResult.end.column);
+			this._Cursors.push(cursor);
+		}
+  
+		this._ValidateCursors();
+		if(this._Cursors.length)
+		{
+			this._EnsureCursorVisible(false, this._Cursors[this._Cursors.length-1]);
+		}
+
+		this.updateHighlights();
+
+		return true;
+	}
+
+	selectNext()
+	{
+		let cursor = (this._Cursors.length && this._Cursors[this._Cursors.length-1]) || null;
+		if(!cursor || !cursor.hasRange)
+		{
+			return;
+		}
+
+		let text = this.getCursorText(cursor);
+
+		if(cursor)
+		{
+			cursor =
+			{
+				lineFrom:cursor.lineTo,
+				columnFrom:cursor.columnTo
+			};
+		}
+		this.find(text, cursor, false, true);
+	}
+
 	get x()
-    {
-        return this._X;
-    }
+	{
+		return this._X;
+	}
 
-    get y()
-    {
-        return this._Y;
-    }
+	get y()
+	{
+		return this._Y;
+	}
 
-    get x2()
-    {
-        return this._X2;
-    }
+	get x2()
+	{
+		return this._X2;
+	}
 
-    get y2()
-    {
-        return this._Y2;
-    }
+	get y2()
+	{
+		return this._Y2;
+	}
 
-    get width()
-    {
-        return this._Width;
-    }
+	get width()
+	{
+		return this._Width;
+	}
 
-    get height()
-    {
-        return this._Height;
-    }
-
+	get height()
+	{
+		return this._Height;
+	}
 }
+
+Pane.backgroundColor = [0.12, 0.12, 0.12, 1.0];
