@@ -337,6 +337,11 @@ export default class Hydrogen
 
 	focus(ui)
 	{
+		if(!ui && this._Panes.length)
+		{
+			ui = this._Panes[0];
+		}
+		this._FocusElement.focus();
 		this.scheduleUpdate();
 		if(this._FocusUI !== ui)
 		{
@@ -421,6 +426,15 @@ export default class Hydrogen
 			let pane = this._Panes[i];
 			pane.forceHighlight = f;
 		}
+	}
+
+	placeCursor(line, column, pane)
+	{
+		if(!pane && this._Panes.length)
+		{
+			pane = this._Panes[0];
+		}
+		pane.placeCursor(line, column);
 	}
 	
 	@bind

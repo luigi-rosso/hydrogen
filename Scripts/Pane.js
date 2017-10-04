@@ -98,6 +98,16 @@ export default class Pane
 		this._Hydrogen.scheduleUpdate();
 	}
 
+	placeCursor(line, column)
+	{
+		let cursor = new Cursor();
+		cursor.place(line, column);
+		this._Cursors.length = 0;
+		this._Cursors.push(cursor);
+		this._ValidateCursors();
+		this._Hydrogen.scheduleUpdate();
+	}
+
 	@bind
 	onDocumentContentsChanged()
 	{
@@ -1856,7 +1866,7 @@ export default class Pane
 	@bind
 	draw(graphics)
 	{
-		if(!this._Document)
+		if(!this._Document || !this._Font.isReady)
 		{
 			return;
 		}
