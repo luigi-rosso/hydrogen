@@ -255,7 +255,7 @@ export default class Highlighter
 				match = re.pattern.exec(textLine);
 			}
 		}
-		console.log("PAINTED SINGLE LINE IN:", Date.now() - start);
+		//console.log("PAINTED SINGLE LINE IN:", Date.now() - start);
 	}
 
 	/*

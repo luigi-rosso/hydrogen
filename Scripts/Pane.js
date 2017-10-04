@@ -116,10 +116,32 @@ export default class Pane
 		this._Hydrogen.scheduleUpdate();
 	}
 
+	get document()
+	{
+		return this._Document;
+	}
+
+	set document(doc)
+	{
+		if(this._Document)
+		{
+			this._Document.removeFromPane(this);
+		}
+		this._Document = doc;
+		if(this._Document)
+		{
+			this._Document.addToPane(this);
+		}
+		this._Cursors = [];
+		this._Highlights = [];
+		this._ClampScroll();
+		this._Hydrogen.scheduleUpdate();
+	}
+
 	@bind
 	openFile(file)
 	{
-		this._Document = new Document(this, this._Hydrogen);
+		this.document = new Document(this._Hydrogen);
 		/*this._Document.onContentsChange = function()
 		{
 			// let start = Date.now();
@@ -128,20 +150,16 @@ export default class Pane
 			self._CaptureJournalEntry();
 			self._Hydrogen.scheduleUpdate();
 		};*/
-		this._Document.fromFile(file);
-		this._Cursors = [];
-		this._Highlights = [];
-		this._ClampScroll();
-		this._Hydrogen.scheduleUpdate();
+		this.document.fromFile(file);
 	}
 
 	setContents(text)
 	{
-		if(!this._Document)
+		if(!this.document)
 		{
-			this._Document = new Document(this, this._Hydrogen);
+			this.document = new Document(this._Hydrogen);
 		}
-		this._Document.setContents(text);
+		this.document.setContents(text);
 	}
 
 	_CaptureJournalEntry()
@@ -761,8 +779,6 @@ export default class Pane
 
 	backspace()
 	{
-		this._TriggerChange();
-
 		let nonRangeCursors = [];
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
@@ -813,12 +829,11 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
+		this._TriggerChange();
 	}
 
 	_Enter()
 	{
-		this._TriggerChange();
-
 		this._DeleteSelection();
 		let lines = this._Document.lines;
 		let linesAdded = 0;
@@ -905,15 +920,11 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
+		this._TriggerChange();
 	}
 
 	_DeleteSelection()
 	{
-		for(let i = 0; i < this._Cursors.length; i++)
-		{
-			let c = this._Cursors[i];
-			console.log(i, c.serialize());
-		}
 		let lines = this._Document.lines;
 		for(let i = this._Cursors.length-1; i >= 0; i--)
 		{
@@ -991,14 +1002,12 @@ export default class Pane
 			if(lineFrom == lineTo)
 			{
 				columnsRemovedThisIteration = cursor.columnTo - cursor.columnFrom;
-				console.log("PLACE CA", i, lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved);
 				cursor.place(lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved);
 				columnsRemoved += columnsRemovedThisIteration;
 			}
 			else
 			{
 				let oldTo = cursor.columnTo;
-				console.log("PLACE CB", lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved, columnsRemoved, oldTo);
 				let columnsGained = cursor.columnFrom - columnsRemoved;
 				cursor.place(lineFrom - linesRemoved, cursor.columnFrom - columnsRemoved);
 				let rem = lineTo-lineFrom;
@@ -1077,7 +1086,6 @@ export default class Pane
 
 	_ReplaceSelectionWith(text)
 	{
-		this._TriggerChange();
 		// Not really necessary to call this again, no?
 		this._ValidateCursors();
 
@@ -1208,6 +1216,7 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
+		this._TriggerChange();
 	}
 
 	_ApplyJournalEntry(entry, cursors)
@@ -1254,7 +1263,6 @@ export default class Pane
 
 	doTab(back)
 	{
-		this._TriggerChange();
 		this._ValidateCursors();
 
 		//_DeleteSelection();
@@ -1390,12 +1398,12 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
+		this._TriggerChange();
 		this._Hydrogen.scheduleUpdate();
 	}
 
 	doDelete()
 	{
-		this._TriggerChange();
 		let lines = this._Document.lines;
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
@@ -1414,51 +1422,13 @@ export default class Pane
 			}
 		}
 		this._DeleteSelection();
-		/*
-		let nonRangeCursors = [];
-		for(let i = 0; i < _Cursors.length; i++)
-		{
-			let cursor = _Cursors[i];
-			if(!cursor.hasRange)
-			{
-				nonRangeCursors.push(cursor);
-			}
-		}
-		_DeleteSelection();
-		let lines = _Document.lines;
-		let removedLines = 0;
-		for(let i = 0; i < nonRangeCursors.length; i++)
-		{
-			let cursor = nonRangeCursors[i];
-			let lineFrom = cursor.lineFrom - removedLines;
-			let line = lines[lineFrom];
-			let column = cursor.columnFrom;
-
-			if(column === line.length)
-			{
-				if(lineFrom < lines.length)
-				{
-					let nextLine = lines[lineFrom+1];
-					let nextLineLength = nextLine.length;
-					lines[lineFrom] += nextLine;
-					lines.splice(lineFrom+1, 1);
-					removedLines++;
-					cursor.place(lineFrom, column);
-				}
-			}
-			else
-			{
-				lines[lineFrom] = line.slice(0, cursor.columnFrom) + line.slice(cursor.columnFrom+1);
-				cursor.place(lineFrom, column);
-			}
-		}*/
-
+		this._TriggerChange();
 		this._EnsureCursorVisible();
 	}
 
 	onKeyPress(evt)
 	{
-		console.log("KEY PRESS", evt.keyCode, evt);
+		//console.log("KEY PRESS", evt.keyCode, evt);
 		
 		switch(evt.keyCode)
 		{

@@ -103,7 +103,6 @@ export default class Hydrogen
 		this.scheduleUpdate();
 		if(this._FocusUI)
 		{
-			console.log("REMOVING THEM");
 			this._RefocusCursors = this._FocusUI.serializeCursors();
 			this._FocusUI.clearCursors();
 		}
@@ -197,6 +196,24 @@ export default class Hydrogen
 			pane = this._Panes[0];
 		}
 		pane.setContents(text);
+	}
+
+	set document(doc)
+	{
+		if(this._Panes.length === 0)
+		{
+			return;
+		}
+		this._Panes[0].document = doc;
+	}
+
+	get document()
+	{
+		if(this._Panes.length === 0)
+		{
+			return null;
+		}
+		return this._Panes[0].document;
 	}
 
 	find(searchTerm, pane)
@@ -535,7 +552,7 @@ export default class Hydrogen
 		{
 			evt.preventDefault();
 		}
-		console.log("KEY DOWN", evt.keyCode, evt.altKey);
+		//console.log("KEY DOWN", evt.keyCode, evt.altKey);
 		switch(evt.keyCode)
 		{
 			case 9:

@@ -4,9 +4,8 @@ import Highlighter from "./Highlighter.js";
 
 export default class Document
 {
-	constructor(pane, hydrogen)
+	constructor(hydrogen)
 	{
-		this._Pane = pane;
 		this._Hydrogen = hydrogen;
 		this._LineBreak = "\n";
 		this._Tab = "\t";
@@ -18,6 +17,7 @@ export default class Document
 		this._MaxLineTabs = 0;
 		this._Parser = new Parser();
 		this._Highlighter = new Highlighter();
+		this._Panes = [];
 
 		// A Set for more performant lookups
 		this._Keywords = new Set(
@@ -34,7 +34,21 @@ export default class Document
 		this._CodePointTab = 9;
 		this._CodePointSpace = 32;
 	}
-	
+
+	addToPane(pane)
+	{
+		this._Panes.push(pane);
+	}
+
+	removeFromPane(pane)
+	{
+		let idx = this._Panes.indexOf(pane);
+		if(idx !== -1)
+		{
+			this._Panes.splice(idx, 1);
+		}
+	}
+
 	@bind
 	fromFile(file)
 	{
@@ -152,10 +166,12 @@ export default class Document
 
 		let elapsed = end-start;
 		console.log("Document.parse took:", elapsed);
-		if(!silent && this._Pane /*this.onContentsChange*/)
+		if(!silent)
 		{
-			// this.onContentsChange();
-			this._Pane.onDocumentContentsChanged();
+			for(let pane of this._Panes)
+			{
+				pane.onDocumentContentsChanged();
+			}
 		} 
 	}
 
@@ -167,7 +183,7 @@ export default class Document
 			this._Highlighter.PaintLine(this._Lines, lineNo);
 		else
 			this._Highlighter.Paint(this._Lines);
-		console.log("PAINTED IN:", Date.now() - start);
+		//console.log("PAINTED IN:", Date.now() - start);
 	}
 	
 	get lines()
