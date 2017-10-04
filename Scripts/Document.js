@@ -1,6 +1,7 @@
 import bind from "bind";
 import Parser from "./Parser.js";
 import Highlighter from "./Highlighter.js";
+import Tokenizer from "./Tokenizer.js";
 
 export default class Document
 {
@@ -94,12 +95,14 @@ export default class Document
     repaintLines(lineNo)
     {
         let start = Date.now();
-        // this._Parser.process(this._Lines);
+        this._Parser.process(this._Lines);
         if(lineNo)
             this._Highlighter.PaintLine(this._Lines, lineNo);
         else
             this._Highlighter.Paint(this._Lines);
         console.log("PAINTED IN:", Date.now() - start);
+        // TODO add Tokenizer
+        let t = new Tokenizer(this._Lines);
     }
 	
     get lines()

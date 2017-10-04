@@ -11,7 +11,7 @@ export default class Highlighter
 		[
 			{
 				name: "keywords",
-				pattern: /\b(as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|true|try|typeof|var|void|while|with|yield)\b/g,
+				pattern: /\b(as|async|await|break|case|catch|class|const|constructor|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|true|try|typeof|var|void|while|with|yield)\b/g,
 				color: 7 // Purple.
 			},
 			{
@@ -23,16 +23,6 @@ export default class Highlighter
 				name: "number",
 				pattern: /\b-?(0[xX][\dA-Fa-f]+|0[bB][01]+|0[oO][0-7]+|\d*\.?\d+([Ee][+-]?\d+)?|NaN|Infinity)\b/g,
 				color: 2 // Light Orange.
-			},	
-			{
-				name: "quotedString",
-				pattern: /("(.*?)")|('(.*?)')/g,
-				color: 1 // Light Green.
-			},
-			{
-				name: "simpleComment",
-				pattern: /\/\/.*\n?/g,
-				color: 6 // Brown.
 			},
 			{
 				name: "regex",
@@ -57,46 +47,6 @@ export default class Highlighter
 					{
 						let c = line[i]; // i now points to the single char after group 1.
 						line[i] = self.colorChar(c, 7); // Second group: Purple.
-					}
-				}
-			},
-			{
-				name: "multilineComment",
-				pattern: /\/\*/g,
-				paint: function(match, lineNo)
-				{
-					let reClose = /\*\//g;
-					
-					let i = lineNo;
-					let j = match.index;
-
-					let intLine = self._Lines[i];
-					let textLine = self._TextLines[i];
-					
-					let closeMatch;
-					// If the closing pattern hasn't been found, paint the whole line brown and move onto the next
-					while((closeMatch = reClose.exec(textLine)) === null)
-					{
-						while(j < intLine.length)
-						{
-							let c = intLine[j];
-							intLine[j] = self.colorChar(c, 6);
-							j++;
-						}
-
-						j = 0;
-						i++; 
-						textLine = self._TextLines[i];
-						intLine = self._Lines[i];
-					}
-
-					// The pattern has closed, finish coloring
-					let endCol = closeMatch.index + 2;
-					while(j < endCol)
-					{
-						let c = intLine[j];
-						intLine[j] = self.colorChar(c, 6);
-						j++;
 					}
 				}
 			},
@@ -177,8 +127,94 @@ export default class Highlighter
 						}
 					}
 				}
+			},			
+			{
+				name: "quotedString",
+				pattern: /("(.*?)")|('(.*?)')/g,
+				color: 1 // Light Green.
+			},
+			{
+				name: "simpleComment",
+				pattern: /\/\/.*\n?/g,
+				color: 6 // Brown.
+			},
+			{
+				name: "multilineComment",
+				pattern: /\/\*/g,
+				paint: function(match, lineNo)
+				{
+					let reClose = /\*\//g;
+					
+					let i = lineNo;
+					let j = match.index;
+
+					let intLine = self._Lines[i];
+					let textLine = self._TextLines[i];
+					
+					let closeMatch;
+					// If the closing pattern hasn't been found, paint the whole line brown and move onto the next
+					while((closeMatch = reClose.exec(textLine)) === null)
+					{
+						while(j < intLine.length)
+						{
+							let c = intLine[j];
+							intLine[j] = self.colorChar(c, 6);
+							j++;
+						}
+
+						j = 0;
+						i++; 
+						textLine = self._TextLines[i];
+						intLine = self._Lines[i];
+					}
+
+					// The pattern has closed, finish coloring
+					let endCol = closeMatch.index + 2;
+					while(j < endCol)
+					{
+						let c = intLine[j];
+						intLine[j] = self.colorChar(c, 6);
+						j++;
+					}
+				}
 			}
 		];
+	}
+
+	Tokenize(lines)
+	{
+		if(!lines)
+		{
+			console.log("EMPTY LINES.");
+			return;
+		}
+
+		let text = this.codePointsToText(lines);
+		this._Lines = lines;
+		this._TextLines = text;
+
+		let matches = new Array(text.length);
+
+		for(let i = 0; i < 20 /*text.length*/; i++)
+		{
+			console.log("\n====== LINE", i, " \n");
+			let line = text[i];
+			let lineMatches = [];
+			matches.push(lineMatches);
+			for(let re of this._RegExes)
+			{
+				let m = re.pattern.exec(line);
+
+				while(m)
+				{
+					lineMatches.push(m);
+					console.log("MATCH:", re.name, m, re.pattern.lastIndex);
+					m = re.pattern.exec(line);
+				}
+			}
+		}
+
+		console.log("ALL MATCHES:", matches);
 	}
 	
 	Paint(lines)
