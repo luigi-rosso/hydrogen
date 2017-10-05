@@ -229,6 +229,19 @@ export default class Hydrogen
 		return pane.find(searchTerm, this._RefocusCursors && this._RefocusCursors[this._RefocusCursors.length-1]);
 	}
 
+	scrollBottom(pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return false;
+			}
+			pane = this._Panes[0];
+		}
+		pane.scrollBottom();
+	}
+
 	findNext(searchTerm, pane)
 	{
 		if(!pane)

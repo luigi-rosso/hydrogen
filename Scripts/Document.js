@@ -108,13 +108,21 @@ export default class Document
 		this._MaxLineLength = maxLineLength;
 	}
 
+	clear()
+	{
+		this._Lines.length = 0;
+		for(let pane of this._Panes)
+		{
+			pane.onDocumentContentsChanged();
+		}
+	}
+
 	@bind
-	setContents(text, silent)
+	setContents(text, silent, append, forceColor)
 	{
 		//text = "			hi this is a 			test of how this works or not does it look right?";
 		this._TextCache = null;
 		let start = Date.now();
-		this._Lines = [];
 
 		let stringLines = text.split(this._LineBreak);
 		let maxLineLength = 0;
@@ -122,7 +130,17 @@ export default class Document
 		let numTabSpaces = this._NumTabSpaces;
 
 		// We build an array of Uint32 elements. Each element represents a single line of text in our file. Each character code associated with the UTF16 representation of the character.
-		this._Lines = new Array(stringLines.length);
+		//this._Lines = new Array(stringLines.length);
+		let lineOffset = 0;
+		if(append)
+		{
+			lineOffset = this._Lines.length;
+			this._Lines.length += stringLines.length;
+		}
+		else
+		{
+			this._Lines.length = stringLines.length;
+		}
 		for(let i = 0; i < stringLines.length; i++)
 		{
 			let stringLine = stringLines[i];
@@ -150,17 +168,29 @@ export default class Document
 				}
 				line[j] = val;
 			}
+
+			// Set default color for whole line if requested.
+			if(forceColor !== undefined)
+			{
+				for(let j = 0; j < line.length; j++)
+				{
+					line[j] = this._Highlighter.colorChar(line[j], forceColor);
+				}
+			}
 			if(lineDisplayLength > maxLineDisplayLength)
 			{
 				maxLineDisplayLength = lineDisplayLength;
 			}
 
-			this._Lines[i] = line;
+			this._Lines[lineOffset+i] = line;
 
 		}
 		this._MaxLineDisplayLength = maxLineDisplayLength;
 		this._MaxLineLength = maxLineLength;
-		this.repaintLines();
+		if(forceColor === undefined)
+		{
+			this.repaintLines();
+		}
 
 		let end = Date.now();
 

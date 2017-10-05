@@ -548,6 +548,24 @@ export default class Pane
 		this._Hydrogen.scheduleUpdate();
 	}
 
+	scrollBottom()
+	{
+		if(!this._Font.isReady || !this._Document)
+		{
+			return;
+		}
+
+		let paneHeight = this._Height;
+
+		let lineHeight = Math.round(this._Font.lineHeight * this._LineHeightScale);
+		let contentHeight = this._Document.lines.length * lineHeight;
+
+		let minScrollY = Math.min(0, paneHeight - contentHeight - 100);
+
+		this._ScrollY = minScrollY;
+		this._Hydrogen.scheduleUpdate();
+	}
+
 	get contentHeight()
 	{
 		return this._CachedContentHeight;
