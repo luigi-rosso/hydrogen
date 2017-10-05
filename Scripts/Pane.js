@@ -768,10 +768,10 @@ export default class Pane
 		{
 			this._ChangeTimeout = setTimeout(this._ChangeComplete, this._HistoryCaptureDelay);
 		}
-		if(this._Document)
+		/*if(this._Document)
 		{
 			this._Document.markDirty();
-		}
+		}*/
 		
 		this._TriggeredScrollX = this._ScrollX;
 		this._TriggeredScrollY = this._ScrollY;
@@ -779,6 +779,8 @@ export default class Pane
 
 	backspace()
 	{
+		this._TriggerChange();
+
 		let nonRangeCursors = [];
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
@@ -829,11 +831,11 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
-		this._TriggerChange();
 	}
 
 	_Enter()
 	{
+		this._TriggerChange();
 		this._DeleteSelection();
 		let lines = this._Document.lines;
 		let linesAdded = 0;
@@ -920,7 +922,6 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
-		this._TriggerChange();
 	}
 
 	_DeleteSelection()
@@ -1080,12 +1081,13 @@ export default class Pane
 			columnsRemoved += columnsRemovedThisIteration;
 		}*/
 		this._ValidateCursors();
-		this._MarkJustInput();
+		this._MarkJustInput(true);
 		this._Hydrogen.scheduleUpdate();
 	}
 
 	_ReplaceSelectionWith(text)
 	{
+		this._TriggerChange();
 		// Not really necessary to call this again, no?
 		this._ValidateCursors();
 
@@ -1216,7 +1218,6 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
-		this._TriggerChange();
 	}
 
 	_ApplyJournalEntry(entry, cursors)
@@ -1231,7 +1232,7 @@ export default class Pane
 		this._ClampScroll();
 		this._ValidateCursors();
 		this._EnsureCursorVisible();
-		this._MarkJustInput();
+		this._MarkJustInput(true);
 		this._Hydrogen.scheduleUpdate();
 	}
 
@@ -1263,6 +1264,7 @@ export default class Pane
 
 	doTab(back)
 	{
+		this._TriggerChange();
 		this._ValidateCursors();
 
 		//_DeleteSelection();
@@ -1398,12 +1400,12 @@ export default class Pane
 		}
 
 		this._EnsureCursorVisible();
-		this._TriggerChange();
 		this._Hydrogen.scheduleUpdate();
 	}
 
 	doDelete()
 	{
+		this._TriggerChange();
 		let lines = this._Document.lines;
 		for(let i = 0; i < this._Cursors.length; i++)
 		{
@@ -1422,7 +1424,6 @@ export default class Pane
 			}
 		}
 		this._DeleteSelection();
-		this._TriggerChange();
 		this._EnsureCursorVisible();
 	}
 
@@ -1487,7 +1488,7 @@ export default class Pane
 		}
 		this._ValidateCursors();
 		this._EnsureCursorVisible(true);
-		this._MarkJustInput();
+		this._MarkJustInput(false);
 		this._Hydrogen.scheduleUpdate();
 		this.updateHighlights();
 	}
@@ -1534,7 +1535,7 @@ export default class Pane
 		}
 		this._ValidateCursors();
 		this._EnsureCursorVisible(true);
-		this._MarkJustInput();
+		this._MarkJustInput(false);
 		this._Hydrogen.scheduleUpdate();
 		this.updateHighlights();
 	}
@@ -1548,7 +1549,7 @@ export default class Pane
 		}
 		this._ValidateCursors();
 		this._EnsureCursorVisible(true);
-		this._MarkJustInput();
+		this._MarkJustInput(false);
 		this._Hydrogen.scheduleUpdate();
 	}
 
@@ -1568,7 +1569,7 @@ export default class Pane
 		}
 		this._ValidateCursors();
 		this._EnsureCursorVisible(true);
-		this._MarkJustInput();
+		this._MarkJustInput(false);
 		this._Hydrogen.scheduleUpdate();
 	}
 
@@ -1583,7 +1584,7 @@ export default class Pane
 		}
 	}
 
-	_MarkJustInput()
+	_MarkJustInput(dirty)
 	{
 		if(!this._JustInput)
 		{
@@ -1592,6 +1593,10 @@ export default class Pane
 		}
 		clearTimeout(this._JustInputTimeout);
 		this._JustInputTimeout = setTimeout(this._ClearJustInput, 1000);
+		if(dirty && this._Document)
+		{
+			this._Document.markDirty();
+		}
 	}
 
 	cursorPageUp(span)

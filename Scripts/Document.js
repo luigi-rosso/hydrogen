@@ -212,8 +212,12 @@ export default class Document
 		for(let i = 0; i < this._Lines.length; i++)
 		{
 			let line = this._Lines[i];
-			
-			// let resultLine = String.fromCodePoint.apply(this, line.subarray(0));
+
+			// Add the line breaks before each line in order to avoid always forcing a final line break.
+			if(i !== 0)
+			{
+				result += this._LineBreak;
+			}
 
 			for(let j = 0; j < line.length; j++)
 			{
@@ -223,7 +227,6 @@ export default class Document
 				result += char;
 			}
 
-			result += this._LineBreak;
 		}
 
 		this._TextCache = result;
