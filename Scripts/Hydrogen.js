@@ -310,20 +310,22 @@ export default class Hydrogen
 	@bind
 	_OnPaste(e)
 	{
-		if(this._FocusUI)
+		let focus = this.focusUI;
+		if(focus)
 		{
-			this._FocusUI.onPaste(e.clipboardData);
+			focus.onPaste(e.clipboardData);
 		}
 	}
 
 	@bind
 	_OnCopy(e)
 	{
-		if(!this._FocusUI)
+		let focus = this.focusUI;
+		if(!focus)
 		{
 			return;
 		}
-		let data = this._FocusUI.onCopy();
+		let data = focus.onCopy();
 		if(data)
 		{
 			e.clipboardData.setData("text/plain", data);
@@ -334,11 +336,12 @@ export default class Hydrogen
 	@bind
 	_OnCut(e)
 	{
-		if(!this._FocusUI)
+		let focus = this.focusUI;
+		if(!focus)
 		{
 			return;
 		}
-		let data = this._FocusUI.onCut();
+		let data = focus.onCut();
 		if(data)
 		{
 			e.clipboardData.setData("text/plain", data);

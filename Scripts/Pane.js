@@ -300,7 +300,10 @@ export default class Pane
 
 	onCut()
 	{
-		let data = "";
+		this._TriggerChange();
+		let data = this.onCopy();
+		this._DeleteSelection();
+		this._EnsureCursorVisible();
 		return data.length ? data : null;
 	}
 
