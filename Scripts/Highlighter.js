@@ -75,9 +75,9 @@ export default class Highlighter
 					
 					let closeMatch;
 					// If the closing pattern hasn't been found, paint the whole line brown and move onto the next
-					while((closeMatch = reClose.exec(textLine)) === null)
+					while(textLine && (closeMatch = reClose.exec(textLine)) === null)
 					{
-						while(j < intLine.length)
+						while(intLine && j < intLine.length)
 						{
 							let c = intLine[j];
 							intLine[j] = self.colorChar(c, 6);
@@ -90,13 +90,16 @@ export default class Highlighter
 						intLine = self._Lines[i];
 					}
 
-					// The pattern has closed, finish coloring
-					let endCol = closeMatch.index + 2;
-					while(j < endCol)
+					if(closeMatch)
 					{
-						let c = intLine[j];
-						intLine[j] = self.colorChar(c, 6);
-						j++;
+						// The pattern has closed, finish coloring
+						let endCol = closeMatch.index + 2;
+						while(j < endCol)
+						{
+							let c = intLine[j];
+							intLine[j] = self.colorChar(c, 6);
+							j++;
+						}
 					}
 				}
 			},
