@@ -345,6 +345,7 @@ export default class Hydrogen
 		if(data)
 		{
 			e.clipboardData.setData("text/plain", data);
+			e.preventDefault();
 		}
 	}
 
