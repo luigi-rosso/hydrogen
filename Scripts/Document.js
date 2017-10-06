@@ -163,7 +163,7 @@ export default class Document
     repaintLines(lineNo)
     {
         let start = Date.now();
-        this._Parser.process(this._Lines);
+        // this._Parser.process(this._Lines);
         if(lineNo)
             this._Highlighter.PaintLine(this._Lines, lineNo);
         else

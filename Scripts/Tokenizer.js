@@ -11,9 +11,26 @@ export default class Tokenizer
 		this._ColPos = 0;
 		this._PrevToken = null;
 		this._Brackets = [];
+		this._Tokens = [];
 		this._State = 0;
+		this._ColorIdx = 0;
 
-		this.STATE_NAMES = [ "WORD", "COMMENT", "STRING", "MULTI_STRING", "OPEN_BRACKET", "CLOSE_BRACKET", "SLASH", "COMMENT", "MULTICOMMENT", "REGEX", "DOT", "ASSIGNMENT", "END_STATEMENT" ];
+		this.STATE_NAMES = 
+		[ 
+			"WORD", 		// 1    1
+			"COMMENT", 		// 2    10
+			"STRING", 		// 4    100
+			"MULTI_STRING", // 8    1000
+			"OPEN_BRACKET", // 16   10000
+			"CLOSE_BRACKET",// 32   100000
+			"SLASH", 		// 64   1000000
+			"COMMENT", 		// 128  10000000
+			"MULTICOMMENT", // 256  100000000
+			"REGEX", 		// 512  1000000000
+			"DOT", 			// 1024 10000000000
+			"ASSIGNMENT", 	// 2048 100000000000
+			"END_STATEMENT" // 4096 1000000000000
+			];
 		this.STATES = { "IGNORE": 0 };
 
 		for(let i = 0; i < this.STATE_NAMES.length; i++)
@@ -41,6 +58,7 @@ export default class Tokenizer
 			"\\": self.STATES.IGNORE,
 			".": self.STATES.DOT,
 			"=": self.STATES.ASSIGNMENT,
+			":": self.STATES.ASSIGNMENT,
 			";": self.STATES.END_STATEMENT,
 			"(": self.STATES.OPEN_BRACKET,
 			")": self.STATES.CLOSE_BRACKET,
@@ -51,71 +69,11 @@ export default class Tokenizer
 			"/": self.STATES.SLASH,
 			"\"": self.STATES.STRING,
 			"\'": self.STATES.STRING,
-			"`": self.STATES.STRING,
-			":": self.STATES.ASSIGNMENT
+			"`": self.STATES.STRING
 		};
 		this.KEYWORDS = 
 		{
-			"abstract": 0,
-			"boolean": 1, 
-			"break": 2, 
-			"byte": 3, 
-			"case": 4, 
-			"catch": 5, 
-			"char": 6, 
-			"class": 7, 
-			"const": 8, 
-			"continue": 9,
-			"debugger": 10,
-			"default": 11,
-			"delete": 12,
-			"do": 13,
-			"double": 14,
-			"else": 15,
-			"enum": 16,
-			"export": 17,
-			"extends": 18,
-			"false": 19,
-			"final": 20,
-			"finally": 21,
-			"float": 22,
-			"for": 23,
-			"function": 24,
-			"goto": 25,
-			"if": 26,
-			"implements": 27,
-			"import": 28,
-			"in": 29,
-			"instanceof": 30,
-			"int": 31,
-			"interface": 32,
-			"let": 33,
-			"long": 34,
-			"native": 35,
-			"new": 36,
-			"null": 37,
-			"package": 38, 
-			"private": 39,
-			"protected": 40,
-			"public": 41,
-			"return": 42,
-			"short": 43,
-			"static": 44,
-			"super": 45,
-			"switch": 46,
-			"synchronized": 47,
-			"this": 48,
-			"throw": 49,
-			"throws": 50,
-			"transient": 51, 
-			"true": 52,
-			"try": 53,
-			"typeof": 54, 
-			"var": 55,
-			"void": 56,
-			"volatile": 57,
-			"while": 58,
-			"with": 59
+			"abstract": 0, "boolean": 1, "break": 2, "byte": 3, "case": 4, "catch": 5, "char": 6, "class": 7, "const": 8, "continue": 9, "debugger": 10, "default": 11, "delete": 12, "do": 13, "double": 14, "else": 15, "enum": 16, "export": 17, "extends": 18, "false": 19, "final": 20, "finally": 21, "float": 22, "for": 23, "function": 24, "goto": 25, "if": 26, "implements": 27, "import": 28, "in": 29, "instanceof": 30, "int": 31, "interface": 32, "let": 33, "long": 34, "native": 35, "new": 36, "null": 37, "package": 38, "private": 39, "protected": 40, "public": 41, "return": 42, "short": 43, "static": 44, "super": 45, "switch": 46, "synchronized": 47, "this": 48, "throw": 49, "throws": 50, "transient": 51, "true": 52, "try": 53, "typeof": 54, "var": 55, "void": 56, "volatile": 57, "while": 58, "with": 59 
 		};
 
 		this._RegExes = 
@@ -152,6 +110,7 @@ export default class Tokenizer
 					// if(self._State === self.STATES.DOT)
 					if(self.isState(self.STATES.DOT))
 					{
+						type = "MEMBER";
 						// console.log("MEMBER!", word);
 						// self.clearState(self.STATES.DOT);
 					}
@@ -179,27 +138,17 @@ export default class Tokenizer
 					
 					switch(self.PUNCTUATION[m])
 					{
-						case self.STATES.SLASH:
-							return self._processSlash();
-
-						case self.STATES.STRING:
-						{
-							let token = self._processString(m);
-							self.clearState(self.STATES.STRING);
-							return token;
-						}
 						case self.STATES.END_STATEMENT:
 							type = "END_STATEMENT";
 							self.clearState(self.STATES.END_STATEMENT);
 							self.clearState(self.STATES.ASSIGNMENT);
 							self.clearState(self.STATES.DOT);
-							break;
+							return self._createToken(type, m, match.index + m.length);
 
 						case self.STATES.OPEN_BRACKET:
 							type = "OPEN_BRACKET";
 							self._Brackets.push(m);
-							break;
-
+							return self._createToken(type, m, match.index + m.length);
 
 						case self.STATES.CLOSE_BRACKET:
 							type = "CLOSE_BRACKET";
@@ -210,16 +159,29 @@ export default class Tokenizer
 							{
 								self.clearState(self.STATES.OPEN_BRACKET);
 							}
-							break;
-					}
+							return self._createToken(type, m, match.index + m.length);
 
-					return self._createToken(type, m, match.index + m.length);
+						case self.STATES.SLASH:
+							return self._processSlash();
+
+						case self.STATES.STRING:
+						{
+							let token = self._processString(m);
+							self.clearState(self.STATES.STRING);
+							return token;
+						}
+					}
 				}
+			}/*,
+			{
+	
 			}
+			*/
 			// TODO Other invalid characters? "[^\s\w\$><=!&\|\+\-\*/%\^~\?:;,\.\(\[\{\)\]\}"']+"
 		];
-
+		let s = Date.now();
 		this.Tokenize();
+		console.log("TOKENIZED IN:", Date.now() - s);
 	}
 
 	isState(stateCheck)
@@ -229,6 +191,7 @@ export default class Tokenizer
 
 	addState(newState)
 	{
+		/*
 		// DEBUG -- TODO REMOVE
 		let a = newState, c = 0;
 		while(a > 1)
@@ -238,6 +201,7 @@ export default class Tokenizer
 		}
 		// console.log("CURRENT STATE:", this._State.toString(2), this._State, newState.toString(2), newState, this.STATE_NAMES[c]);
 		// END DEBUG
+		*/
 		this._State |= newState;
 	}
 
@@ -311,42 +275,64 @@ export default class Tokenizer
 			{	// Go look for the matching */
 				let t = "/*";
 				let endCol = this._ColPos + 2;
+				this.colorChar(this._ColPos);
+				this.colorChar(this._ColPos + 1);
+
 				let end = /(\*\/)/g;
+				this.colorIndex = 4;
 
 				for(; this._LineNum < this._TextLines.length; this._LineNum++)
 				{
 					end.lastIndex = endCol;
 					line = this._TextLines[this._LineNum];
 					let match = end.exec(line);
-					// TODO color everything in between
 					if(match && match[1] !== undefined)
 					{
-						// TODO color everything in between
-						t += " " + line.substring(endCol, match.index + match[0].length).trim();
-						endCol = match.index + match[0].length;
+						let p = match.index + match[0].length;
+						for(; endCol < p; endCol++)
+						{
+							this.colorChar(endCol);
+							t += line[endCol];
+						}
+						// t += " " + line.substring(endCol, match.index + match[0].length).trim();
+						// endCol = match.index + match[0].length;
 						break;
 					}
 					else
 					{
 						t += " " + line.substring(endCol).trim();
+						let p = line.length;
+						// TODO could optmize with while()
+						for(; endCol < p; endCol++)
+						{
+							this.colorChar(endCol);
+							t += line[endCol];
+						}
 						// TODO Color everything in between
 						endCol = 0;
 					}
 				}
-				// console.log("MULTICOMMENT TOKEN:", t);
+
 				token = this._createToken("MULTICOMMENT", t, endCol);
-				
+				this._ColorIdx = 0;
 				break;
 			}
 
 			case "/":
-				// Go look until the end of the line
-				// TODO color everything that's after this second slash
+			{
 				// console.log("COMMENT TOKEN:", line.substring(this._ColPos));
-				token = this._createToken("COMMENT", line.substring(this._ColPos), line.length);
+				this.colorIndex = 4;
+				let p = line.length;
+				let t = "";
+				for(let i = this._ColPos; i < p; i++)
+				{
+					this.colorChar(i);
+					t += line[i];
+				}
+				token = this._createToken("COMMENT", t, line.length);
 				
 				break;
-
+			}
 			default:
 			{
 				let type, text, endPos = this._ColPos + 1;
@@ -383,9 +369,17 @@ export default class Tokenizer
 	_createToken(type, text, endCol)
 	{
 		this._ColPos = endCol;
+		
+/*		for(let name in this.STATES)
+		{
+			if(this.isState(this.STATES[name]))
+				console.log("STATE:", name);
+		}
+*/
 		return {
 			"type": type,
-			"text": text
+			"text": text,
+			"state": this._State.toString(2)
 		};
 	}
 
@@ -400,6 +394,7 @@ export default class Tokenizer
 
 	Tokenize()
 	{
+		this._Tokens.length = 0;
 		this._TextLines = this.codePointsToText(this._Lines);
 		for(this._LineNum = 0; this._LineNum < this._TextLines.length; this._LineNum++)
 		{
@@ -424,6 +419,7 @@ export default class Tokenizer
 					{
 						i = -1;
 						// console.log("TOKEN:", token);
+						this._Tokens.push(token);
 						// console.log("PREV:", this._PrevToken);
 						this._PrevToken = token;
 					}	
@@ -431,6 +427,7 @@ export default class Tokenizer
 					
 			}
 		}
+		// console.log("TOKENS:", this._Tokens);
 	}
 	
 	Paint(lines)
@@ -467,18 +464,21 @@ export default class Tokenizer
 		return textLines;
 	}
 
+	set colorIndex(idx)
+	{
+		idx = idx || 0;
+		this._ColorIdx = (idx << 21);
+	}
+
 	/*
 		Colors a single character `c` (represented by a Unicode Code Point)  with the color at given index in the Palette
-		- 'c' Uint32 
-		- 'colorIndex' int
+		- 'column' int 
 	*/
-	colorChar(c, colorIndex)
+	colorChar(column)
 	{
-		colorIndex = colorIndex || 0; // Make sure color is a value
+		let c = this._Lines[this._LineNum][column];
 		c = (c << 11) >>> 11; // Clear old color mask
-		let colorIdx = colorIndex << 21; 
-		c = c ^ colorIdx;
-
-		return c;
+		this._Lines[this._LineNum][column] = c ^ this._ColorIdx;
 	}
+	// Is it faster to calculate the value c from the utf8 elements or rebuild it from the arrays?
 }
