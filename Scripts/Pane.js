@@ -477,6 +477,7 @@ export default class Pane
 		this._EnsureCursorVisible(true);
 		this._Hydrogen.scheduleUpdate();
 		this.updateHighlights();
+		this._MarkJustInput(false);
 	}
 
 	@bind
@@ -1496,6 +1497,43 @@ export default class Pane
 	}
 
 
+	// This function will move any range cursors found to either their start or end.
+	// This happens when we press <- or -> and range cursors exist.
+	// Returns true if it moved a cursor.
+	_MoveRangeCursors(toEnd)
+	{
+		let moved = false;
+		let doc = this._Document;
+		for(let i = 0; i < this._Cursors.length; i++)
+		{
+			let cursor = this._Cursors[i];
+			if(!cursor.hasRange)
+			{
+				continue;
+			}
+			moved = true;
+			if(toEnd)
+			{
+				cursor.moveTo(cursor.columnTo, cursor.lineTo, doc, false);
+			}
+			else
+			{
+				cursor.moveTo(cursor.columnFrom, cursor.lineFrom, doc, false);
+			}
+		}
+
+		if(moved)
+		{
+			this._ValidateCursors();
+			this._EnsureCursorVisible(true);
+			this._MarkJustInput(false);
+			this._Hydrogen.scheduleUpdate();
+			this.updateHighlights();
+		}
+
+		return moved;
+	}
+
 	_MoveCursors(x, y, span, noWrap)
 	{
 		for(let i = 0; i < this._Cursors.length; i++)
@@ -1526,11 +1564,20 @@ export default class Pane
 
 	cursorLeft(span)
 	{
+		if(!span && this._MoveRangeCursors(false))
+		{
+			return;
+		}
+
 		this._MoveCursors(-1, 0, span);
 	}
 
 	cursorRight(span)
 	{
+		if(!span && this._MoveRangeCursors(true))
+		{
+			return;
+		}
 		this._MoveCursors(1, 0, span);
 	}
 
@@ -1594,6 +1641,7 @@ export default class Pane
 		this._Hydrogen.scheduleUpdate();
 	}
 
+	@bind
 	_ClearJustInput()
 	{
 		clearTimeout(this._JustInputTimeout);
@@ -1613,7 +1661,7 @@ export default class Pane
 			this._UpdateBlinkState();
 		}
 		clearTimeout(this._JustInputTimeout);
-		this._JustInputTimeout = setTimeout(this._ClearJustInput, 1000);
+		this._JustInputTimeout = setTimeout(this._ClearJustInput, 500);
 		if(dirty && this._Document)
 		{
 			this._Document.markDirty();
@@ -1779,15 +1827,8 @@ export default class Pane
 		let shouldDisable = this._IsDragging || this._JustInput;
 		if(shouldDisable != this._IsBlinkingDisabled)
 		{
-			let domCursor, cursor;
-			for(let i = 0; i < this._Cursors.length; i++)
-			{
-				cursor = this._Cursors[i];
-				
-				domCursor = this._GetDomCursor(i);
-				domCursor.style.animation = shouldDisable ? "none" : null;
-			}
-			
+			let cursorsElement = this._Hydrogen._CursorsDOM;
+			cursorsElement.style.animation = shouldDisable ? "none" : null;
 			this._IsBlinkingDisabled = shouldDisable;
 		}
 	}
