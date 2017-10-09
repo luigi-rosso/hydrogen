@@ -73,7 +73,7 @@ export default class Tokenizer
 		};
 		this.KEYWORDS = 
 		{
-			"abstract": 0, "boolean": 1, "break": 2, "byte": 3, "case": 4, "catch": 5, "char": 6, "class": 7, "const": 8, "continue": 9, "debugger": 10, "default": 11, "delete": 12, "do": 13, "double": 14, "else": 15, "enum": 16, "export": 17, "extends": 18, "false": 19, "final": 20, "finally": 21, "float": 22, "for": 23, "function": 24, "goto": 25, "if": 26, "implements": 27, "import": 28, "in": 29, "instanceof": 30, "int": 31, "interface": 32, "let": 33, "long": 34, "native": 35, "new": 36, "null": 37, "package": 38, "private": 39, "protected": 40, "public": 41, "return": 42, "short": 43, "static": 44, "super": 45, "switch": 46, "synchronized": 47, "this": 48, "throw": 49, "throws": 50, "transient": 51, "true": 52, "try": 53, "typeof": 54, "var": 55, "void": 56, "volatile": 57, "while": 58, "with": 59 
+			"abstract": 0, "boolean": 1, "break": 2, "byte": 3, "case": 4, "catch": 5, "char": 6, "class": 7, "const": 8, "continue": 9, "debugger": 10, "default": 11, "delete": 12, "do": 13, "double": 14, "else": 15, "enum": 16, "export": 17, "extends": 18, "false": 19, "final": 20, "finally": 21, "float": 22, "for": 23, "function": 24, "goto": 25, "if": 26, "implements": 27, "import": 28, "in": 29, "instanceof": 30, "int": 31, "interface": 32, "let": 33, "long": 34, "native": 35, "new": 36, "null": 37, "package": 38, "private": 39, "protected": 40, "public": 41, "return": 42, "short": 43, "static": 44, "super": 45, "switch": 46, "synchronized": 47, "this": 48, "throw": 49, "throws": 50, "transient": 51, "true": 52, "try": 53, "typeof": 54, "var": 55, "void": 56, "volatile": 57, "while": 58, "with": 59, "yield": 60
 		};
 
 		this._RegExes = 
@@ -96,6 +96,16 @@ export default class Tokenizer
 				handler: function(match)
 				{
 					// console.log("NUMBER", match[0]);
+					self.colorIndex = 2;
+					let col = match.index - 1;
+					let endpos = match.index + match[0].length;
+
+					while(col++ < endpos)
+					{
+						self.colorChar(col);
+					}
+
+					self.colorIndex = 0;
 					return self._createToken("NUMBER", match[0], match.index + match[0].length);
 				}
 			},
@@ -107,17 +117,23 @@ export default class Tokenizer
 					let type = "WORD";
 					let word = match[0];
 
-					// if(self._State === self.STATES.DOT)
 					if(self.isState(self.STATES.DOT))
 					{
 						type = "MEMBER";
-						// console.log("MEMBER!", word);
-						// self.clearState(self.STATES.DOT);
+
 					}
 
 					if(self.KEYWORDS.hasOwnProperty(word))
 					{
 						type = "KEYWORD";
+						self.colorIndex = 7;
+						let col = match.index;
+						let endp = match.index + word.length;
+						for(col; col < endp; ++col)
+						{
+							self.colorChar(col);
+						}
+						self.colorIndex = 0;
 					}
 					// console.log("TYPE:", type, "\'" + word + "\'");
 
@@ -135,6 +151,13 @@ export default class Tokenizer
 					// console.log("PUNCTUATION:", m);
 
 					self.addState(self.PUNCTUATION[m]);
+
+					let colorPunctuation = function()
+					{
+						self.colorIndex = 5;
+						self.colorChar(match.index);
+						self.colorIndex = 0;
+					};
 					
 					switch(self.PUNCTUATION[m])
 					{
@@ -143,11 +166,13 @@ export default class Tokenizer
 							self.clearState(self.STATES.END_STATEMENT);
 							self.clearState(self.STATES.ASSIGNMENT);
 							self.clearState(self.STATES.DOT);
+							colorPunctuation();
 							return self._createToken(type, m, match.index + m.length);
 
 						case self.STATES.OPEN_BRACKET:
 							type = "OPEN_BRACKET";
 							self._Brackets.push(m);
+							colorPunctuation();
 							return self._createToken(type, m, match.index + m.length);
 
 						case self.STATES.CLOSE_BRACKET:
@@ -159,6 +184,7 @@ export default class Tokenizer
 							{
 								self.clearState(self.STATES.OPEN_BRACKET);
 							}
+							colorPunctuation();
 							return self._createToken(type, m, match.index + m.length);
 
 						case self.STATES.SLASH:
@@ -170,6 +196,9 @@ export default class Tokenizer
 							self.clearState(self.STATES.STRING);
 							return token;
 						}
+						default:
+							colorPunctuation();
+							return self._createToken(type, m, match.index + m.length);
 					}
 				}
 			}/*,
@@ -219,10 +248,14 @@ export default class Tokenizer
 		let end = new RegExp(openChar, "g");
 		end.lastIndex = this._ColPos + 1;
 		let match;
+		let line;
+
+		this.colorIndex = 1;
+		this.colorChar(this._ColPos);
 
 		for(; escapedEOL && this._LineNum < this._TextLines.length; this._LineNum++)
 		{
-			let line = this._TextLines[this._LineNum];
+			line = this._TextLines[this._LineNum];
 			while((match = end.exec(line)) !== null)
 			{
 				// console.log("FOUND POTENTIAL STRING END!", match);
@@ -232,12 +265,25 @@ export default class Tokenizer
 				if(esc === "\\")
 				{
 					// console.log("FALSE ALARM, END WAS ESCAPED!");
-					this._ColPos = match.index + 1;
-					col = match.index;
+					let endp = match.index;
+					for(; col < endp; col++)
+					{
+						this.colorChar(col);
+					}
+					this._ColPos = col + 1;
 				}
 				else
 				{
 					// console.log("FOUND IT!");
+					let p = match.index + 1;
+					for(; col < p; col++)
+					{
+						this.colorChar(col);
+					}
+
+					this.clearState(this.STATES.STRING);
+					this.colorIndex = 0;
+
 					return this._createToken(type, text, end.lastIndex);
 				}
 			}
@@ -246,16 +292,32 @@ export default class Tokenizer
 			if(!escapedEOL)
 			{
 				text += line.substring(col);
+				let endp = line.legnth;
+				for(; col < endp; col++)
+				{	
+					this.colorChar(col);
+				}
+
+				this.clearState(this.STATES.STRING);
+				this.colorIndex = 0;
+				
 				return this._createToken("STRING_UNCLOSED", text, line.length);
 			}
 
 			text += line.substring(col) + "\n";
+
+			for(; col < line.length; col++)
+			{
+				this.colorChar(col);
+			}
+
 			col = end.lastIndex = 0;
 		}
 
 		this.clearState(this.STATES.STRING);
+		this.colorIndex = 0;
 
-		return token;
+		return this._createToken("FULL_STRING", text, line.length);
 	}
 
 	_processSlash()
@@ -273,13 +335,13 @@ export default class Tokenizer
 		{
 			case "*":
 			{	// Go look for the matching */
+				this.colorIndex = 6;
 				let t = "/*";
 				let endCol = this._ColPos + 2;
 				this.colorChar(this._ColPos);
 				this.colorChar(this._ColPos + 1);
 
 				let end = /(\*\/)/g;
-				this.colorIndex = 4;
 
 				for(; this._LineNum < this._TextLines.length; this._LineNum++)
 				{
@@ -308,7 +370,7 @@ export default class Tokenizer
 							this.colorChar(endCol);
 							t += line[endCol];
 						}
-						// TODO Color everything in between
+
 						endCol = 0;
 					}
 				}
@@ -321,7 +383,7 @@ export default class Tokenizer
 			case "/":
 			{
 				// console.log("COMMENT TOKEN:", line.substring(this._ColPos));
-				this.colorIndex = 4;
+				this.colorIndex = 6;
 				let p = line.length;
 				let t = "";
 				for(let i = this._ColPos; i < p; i++)
@@ -337,23 +399,37 @@ export default class Tokenizer
 			{
 				let type, text, endPos = this._ColPos + 1;
 
-				let end = /(\/)/g;
+				let end = /(\/[gimuy]?)/g;
 				end.lastIndex = this._ColPos + 1;
-				let match = end.exec(line);
+				let match;
 
-				if(match && match[1] !== undefined)
+				while((match = end.exec(line)) !== null)
 				{
+					let prevChar = line[match.index - 1];
+					if(prevChar === "\\")
+					{
+						continue;
+					}
+					this.colorIndex = 3;
+					this.colorChar(this._ColPos);
 					type = 	"REGEX";
-					// TODO color everything for regex
-					endPos = match.index + 1;
-					text = line.substring(this._ColPos, endPos);
+
+					let p = match.index + match[0].length;
+					for(endPos; endPos < p; endPos++)
+					{
+						this.colorChar(endPos);
+						text += line[endPos];
+					}
 					// console.log("FOUND REGEX END!", text);
-					break;
+					break;					
 				}
-				else
+				
+				if(!match)
 				{
 					type = "DIVISION";
 					text = "/";
+					this.colorIndex = 5;
+					this.colorChar(this._ColPos);
 				}
 
 				token = this._createToken(type, text, endPos);
@@ -362,6 +438,7 @@ export default class Tokenizer
 		}
 
 		this.clearState(this.STATES.SLASH);
+		this.colorIndex = 0;
 
 		return token;
 	}
@@ -403,7 +480,7 @@ export default class Tokenizer
 
 			for(let i = 0; i < this._RegExes.length; i++)
 			{
-				let line = this._TextLines[this._LineNum];
+				let line = this._TextLines[this._LineNum]; // TODO move this into class variable
 				if(this._ColPos >= line.length) break;
 
 				let re = this._RegExes[i];
