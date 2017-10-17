@@ -29,7 +29,8 @@ export default class Tokenizer
 			"REGEX", 		// 512  1000000000
 			"DOT", 			// 1024 10000000000
 			"ASSIGNMENT", 	// 2048 100000000000
-			"END_STATEMENT" // 4096 1000000000000
+			"NO_REGEX", 	// 4096 1000000000000
+			"END_STATEMENT" // 8192 10000000000000
 			];
 		this.STATES = { "IGNORE": 0 };
 
@@ -92,20 +93,23 @@ export default class Tokenizer
 			},
 			{
 				name: "number",
-				pattern: /([+-]?(?:0[xX](?:[0-9a-fA-F]+)|[0-9]+(?:\.[0-9]*)?(?:[eE][+-]?[0-9]+)?|\.[0-9]+(?:[eE][+-]?[0-9]+)?))?/g,
+				pattern: /(([+-])?(?:0[xX](?:[0-9a-fA-F]+)|[0-9]+(?:\.[0-9]*)?(?:[eE][+-]?[0-9]+)?|\.[0-9]+(?:[eE][+-]?[0-9]+)?))?/g,
 				handler: function(match)
-				{
-					// console.log("NUMBER", match[0]);
-					self.colorIndex = 2;
+				{ 
+					// console.log("NUMBER", match);
 					let col = match.index - 1;
 					let endpos = match.index + match[0].length;
 
+					if(match[2]) return null;
+
+					self.colorIndex = 2;
 					while(col++ < endpos)
 					{
 						self.colorChar(col);
 					}
 
 					self.colorIndex = 0;
+					self.addState(self.STATES.NO_REGEX);
 					return self._createToken("NUMBER", match[0], match.index + match[0].length);
 				}
 			},
@@ -163,9 +167,7 @@ export default class Tokenizer
 					{
 						case self.STATES.END_STATEMENT:
 							type = "END_STATEMENT";
-							self.clearState(self.STATES.END_STATEMENT);
-							self.clearState(self.STATES.ASSIGNMENT);
-							self.clearState(self.STATES.DOT);
+							self.endStatement();
 							colorPunctuation();
 							return self._createToken(type, m, match.index + m.length);
 
@@ -238,6 +240,14 @@ export default class Tokenizer
 	{
 		this._State &= (~oldState);
 		// console.log("CLEARED STATE:", this._State.toString(2), this._State);
+	}
+
+	endStatement()
+	{
+		this.clearState(this.STATES.END_STATEMENT);
+		this.clearState(this.STATES.ASSIGNMENT);
+		this.clearState(this.STATES.DOT);
+		this.clearState(this.STATES.NO_REGEX);
 	}
 
 	_processString(openChar)
@@ -399,11 +409,12 @@ export default class Tokenizer
 			{
 				let type, text, endPos = this._ColPos + 1;
 
+				let canRegex = !this.isState(this.STATES.NO_REGEX);
+				let match;
 				let end = /(\/[gimuy]?)/g;
 				end.lastIndex = this._ColPos + 1;
-				let match;
-
-				while((match = end.exec(line)) !== null)
+				
+				while(canRegex && (match = end.exec(line)) !== null)
 				{
 					let prevChar = line[match.index - 1];
 					if(prevChar === "\\")
