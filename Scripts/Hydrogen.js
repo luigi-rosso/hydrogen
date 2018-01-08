@@ -268,6 +268,19 @@ export default class Hydrogen
 		return pane.selectNext();
 	}
 
+	selectAll(pane)
+	{
+		if(!pane)
+		{
+			if(this._Panes.length === 0)
+			{
+				return false;
+			}
+			pane = this._Panes[0];
+		}
+		return pane.selectAll();
+	}
+
 	findPrevious(searchTerm, pane)
 	{
 		if(!pane)
@@ -474,6 +487,10 @@ export default class Hydrogen
 	@bind
 	_OnMouseUp(evt)
 	{
+		if(document.activeElement !== this._FocusElement)
+		{
+			return;
+		}
 		evt.stopPropagation();
 		evt.preventDefault();
 
@@ -503,9 +520,18 @@ export default class Hydrogen
 	@bind
 	_OnKeyDown(evt)
 	{
+		console.log("EVT", evt.keyCode);
 		// Do pre-focus specific events first.
 		switch(evt.keyCode)
 		{
+			case 65: // A for all
+				if((this._IsOSX && evt.metaKey) || evt.ctrlKey)
+				{
+					evt.preventDefault();
+					evt.stopPropagation();
+					this.selectAll();
+				}
+				break;
 				// F for find
 			case 70:
 				if((this._IsOSX && evt.metaKey) || evt.ctrlKey)

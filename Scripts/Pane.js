@@ -418,7 +418,7 @@ export default class Pane
 
 		if(evt.shiftKey && this._Cursors.length > 0)
 		{
-			let cursorLine = 0;
+			let cursorLine = -1;
 
 			for(let i = 0; i < this._Cursors.length; i++)
 			{
@@ -2227,6 +2227,21 @@ export default class Pane
 		return true;
 	}
 
+	selectAll()
+	{
+		let cursor = (this._Cursors.length && this._Cursors[this._Cursors.length-1]) || null;
+		if(!cursor)
+		{
+			cursor = new Cursor();
+			this._Cursors.push(cursor);
+		}
+
+		let lines = this._Document.lines;
+		let lastLine = lines && lines[lines.length-1];
+		cursor.span(0, 0, lines.length-1, lastLine.length, false);
+		this._Hydrogen.scheduleUpdate();
+	}
+
 	selectNext()
 	{
 		let cursor = (this._Cursors.length && this._Cursors[this._Cursors.length-1]) || null;
@@ -2279,4 +2294,4 @@ export default class Pane
 	}
 }
 
-Pane.backgroundColor = [0.12, 0.12, 0.12, 1.0];
+Pane.backgroundColor = [0.0, 0.0, 0.0, 0.0];//[0.12, 0.12, 0.12, 0.8];
